@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const { initDb } = require("./db");
 
 const app = express();
 
@@ -27,11 +28,17 @@ app.use((err, req, res, _next) => {
   res.status(500).json({ error: "Internal server error" });
 });
 
-// Start reminder scheduler
-require("./reminders");
-
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Next Level Salon server running → http://localhost:${PORT}`);
-  console.log(`Admin panel → http://localhost:${PORT}/admin`);
-});
+
+initDb()
+  .then(() => {
+    require("./reminders");
+    app.listen(PORT, () => {
+      console.log(`Next Level Salon server running → http://localhost:${PORT}`);
+      console.log(`Admin panel → http://localhost:${PORT}/admin`);
+    });
+  })
+  .catch(err => {
+    console.error("Database initialization failed:", err.message);
+    process.exit(1);
+  });

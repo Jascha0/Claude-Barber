@@ -1,8 +1,8 @@
 const router = require("express").Router();
-const db = require("../db");
+const { pool } = require("../db");
 
-router.get("/", (req, res) => {
-  const rows = db.prepare("SELECT * FROM staff WHERE active = 1 ORDER BY id").all();
+router.get("/", async (req, res) => {
+  const [rows] = await pool.execute("SELECT * FROM staff WHERE active = 1 ORDER BY id");
   res.json(rows);
 });
 

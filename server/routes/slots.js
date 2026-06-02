@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const db = require("../db");
+const { pool } = require("../db");
 
 function decimalToTime(h) {
   const hh = Math.floor(h);
@@ -8,25 +8,26 @@ function decimalToTime(h) {
 }
 
 // GET /api/slots?date=YYYY-MM-DD&serviceId=1&staffId=0
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
   const { date, serviceId, staffId } = req.query;
 
-  if (!date || !serviceId) {
-    return res.status(400).json({ error: "date and serviceId required" });
-  }
+  if (!date || !serviceId) return res.status(400).json({ error: "date and serviceId required" });
 
-  const service = db.prepare("SELECT * FROM services WHERE id = ? AND active = 1").get(Number(serviceId));
+  const [[service]] = await pool.execute(
+    "SELECT * FROM services WHERE id = ? AND active = 1",
+    [Number(serviceId)]
+  );
   if (!service) return res.status(404).json({ error: "Service not found" });
 
-  const hoursRaw = db.prepare("SELECT value FROM settings WHERE key = 'hours'").get();
-  const hours = JSON.parse(hoursRaw.value);
+  const [[hoursRow]] = await pool.execute("SELECT value FROM settings WHERE `key` = 'hours'");
+  const hours = JSON.parse(hoursRow.value);
 
   const dow = new Date(date + "T12:00:00").getDay();
   const dayHours = hours[dow];
   if (!dayHours) return res.json([]);
 
   const [open, close] = dayHours;
-  const step = 0.5; // 30 min steps
+  const step = 0.5;
   const durationH = service.duration / 60;
 
   const allSlots = [];
@@ -34,18 +35,18 @@ router.get("/", (req, res) => {
     allSlots.push(decimalToTime(t));
   }
 
-  // Get all active staff if staffId=0 (any)
-  const allStaff = db.prepare("SELECT id FROM staff WHERE active = 1").all().map(r => r.id);
+  const [allStaffRows] = await pool.execute("SELECT id FROM staff WHERE active = 1");
+  const allStaff = allStaffRows.map(r => r.id);
   const targetStaff = Number(staffId) === 0 ? allStaff : [Number(staffId)];
 
-  // Fetch taken slots (bookings + blocked) for the date
-  const takenBookings = db.prepare(
-    "SELECT staff_id, time_slot FROM bookings WHERE date = ? AND status != 'cancelled'"
-  ).all(date);
-
-  const takenBlocked = db.prepare(
-    "SELECT staff_id, time_slot FROM blocked_slots WHERE date = ?"
-  ).all(date);
+  const [takenBookings] = await pool.execute(
+    "SELECT staff_id, time_slot FROM bookings WHERE date = ? AND status != 'cancelled'",
+    [date]
+  );
+  const [takenBlocked] = await pool.execute(
+    "SELECT staff_id, time_slot FROM blocked_slots WHERE date = ?",
+    [date]
+  );
 
   const takenByStaff = {};
   [...takenBookings, ...takenBlocked].forEach(({ staff_id, time_slot }) => {
@@ -54,7 +55,6 @@ router.get("/", (req, res) => {
   });
 
   const result = allSlots.map(slot => {
-    // A slot is available if at least one of the target staff is free
     const available = targetStaff.some(sid => {
       const taken = takenByStaff[sid] || new Set();
       return !taken.has(slot);

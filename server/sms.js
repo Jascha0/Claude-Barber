@@ -1,13 +1,12 @@
 require("dotenv").config();
-const db = require("./db");
+const { pool } = require("./db");
 
-function isEnabled() {
-  const row = db.prepare("SELECT value FROM settings WHERE key = 'twilio_enabled'").get();
-  return row?.value === "true" && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN;
+async function isEnabled() {
+  const [[row]] = await pool.execute("SELECT value FROM settings WHERE `key` = 'twilio_enabled'");
+  return row?.value === "true" && !!process.env.TWILIO_ACCOUNT_SID && !!process.env.TWILIO_AUTH_TOKEN;
 }
 
 function getClient() {
-  if (!isEnabled()) return null;
   const twilio = require("twilio");
   return twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 }
@@ -18,8 +17,8 @@ function formatDate(dateStr) {
 }
 
 async function sendConfirmation({ booking, service, staff }) {
+  if (!await isEnabled()) return;
   const client = getClient();
-  if (!client) return;
 
   const msg =
     `Hallo ${booking.customer_name}, dein Termin bei Next Level Salon ist bestätigt!\n` +
@@ -37,8 +36,8 @@ async function sendConfirmation({ booking, service, staff }) {
 }
 
 async function sendReminder({ booking, service }) {
+  if (!await isEnabled()) return;
   const client = getClient();
-  if (!client) return;
 
   const msg =
     `Erinnerung: Morgen um ${booking.time_slot} Uhr hast du einen Termin bei Next Level Salon.\n` +
