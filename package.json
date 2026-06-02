@@ -1,0 +1,29 @@
+{
+  "name": "claude-barber",
+  "version": "1.0.0",
+  "description": "Building a Website for Barbers with an automatised response system",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jascha0/Claude-Barber.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Jascha0/Claude-Barber/issues"
+  },
+  "homepage": "https://github.com/Jascha0/Claude-Barber#readme",
+  "dependencies": {
+    "better-sqlite3": "^12.10.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "node-cron": "^4.2.1"
+  }
+}

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin – Next Level Salon</title>
+  <link rel="stylesheet" href="admin.css" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+  <script src="admin.js" defer></script>
+</head>
+<body>
+
+  <!-- LOGIN SCREEN -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-card">
+      <div class="brand-mark">NL</div>
+      <h1>Admin-Login</h1>
+      <p>Next Level Salon</p>
+      <form id="loginForm">
+        <input type="password" id="passwordInput" placeholder="Passwort" required autocomplete="current-password" />
+        <button type="submit">Anmelden</button>
+        <p id="loginError" class="error hidden">Falsches Passwort.</p>
+      </form>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" class="hidden">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <span class="brand-mark">NL</span>
+        <span>Next Level</span>
+      </div>
+      <nav>
+        <button class="nav-item active" data-view="today" onclick="switchView('today', this)">
+          <i data-lucide="calendar-days"></i> Heute
+        </button>
+        <button class="nav-item" data-view="bookings" onclick="switchView('bookings', this)">
+          <i data-lucide="list"></i> Termine
+        </button>
+        <button class="nav-item" data-view="services" onclick="switchView('services', this)">
+          <i data-lucide="scissors"></i> Services
+        </button>
+        <button class="nav-item" data-view="staff" onclick="switchView('staff', this)">
+          <i data-lucide="users"></i> Mitarbeiter
+        </button>
+      </nav>
+      <button class="logout-btn" onclick="logout()">
+        <i data-lucide="log-out"></i> Abmelden
+      </button>
+    </aside>
+
+    <main class="content">
+
+      <!-- TODAY VIEW -->
+      <div id="view-today" class="view">
+        <div class="view-header">
+          <h2>Heute</h2>
+          <span id="todayDate" class="muted"></span>
+        </div>
+        <div class="stats-row" id="statsRow"></div>
+        <div id="todayList" class="booking-list"></div>
+      </div>
+
+      <!-- ALL BOOKINGS VIEW -->
+      <div id="view-bookings" class="view hidden">
+        <div class="view-header">
+          <h2>Alle Termine</h2>
+          <div class="filter-row">
+            <input type="date" id="filterDate" onchange="loadBookings()" />
+            <select id="filterStatus" onchange="loadBookings()">
+              <option value="">Alle Status</option>
+              <option value="confirmed">Bestätigt</option>
+              <option value="done">Erledigt</option>
+              <option value="no-show">No-Show</option>
+              <option value="cancelled">Storniert</option>
+            </select>
+          </div>
+        </div>
+        <div id="bookingsList" class="booking-list"></div>
+      </div>
+
+      <!-- SERVICES VIEW -->
+      <div id="view-services" class="view hidden">
+        <div class="view-header"><h2>Services</h2></div>
+        <div id="servicesList" class="settings-list"></div>
+      </div>
+
+      <!-- STAFF VIEW -->
+      <div id="view-staff" class="view hidden">
+        <div class="view-header"><h2>Mitarbeiter</h2></div>
+        <div id="staffList" class="settings-list"></div>
+      </div>
+
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+</body>
+</html>
