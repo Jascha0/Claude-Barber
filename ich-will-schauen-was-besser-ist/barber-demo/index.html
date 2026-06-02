@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Next Level Salon | Friseur in München-Maxvorstadt</title>
+    <meta
+      name="description"
+      content="Next Level Salon in München-Maxvorstadt. Herrenhaarschnitt, Bart, Damenhaarschnitt und Pflege direkt online buchen."
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+    <script src="script.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#home" aria-label="Next Level Salon Startseite">
+        <span class="brand-mark">NL</span>
+        <span>Next Level Salon</span>
+      </a>
+      <nav class="nav" aria-label="Hauptnavigation">
+        <a href="#services">Preise</a>
+        <a href="#booking">Buchen</a>
+        <a href="#location">Standort</a>
+      </nav>
+      <a class="top-cta" href="#booking">
+        <i data-lucide="calendar-check" aria-hidden="true"></i>
+        <span>Termin buchen</span>
+      </a>
+    </header>
+
+    <main id="home">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-media" aria-hidden="true">
+          <img
+            src="https://cdn1.treatwell.net/images/view/v2.i15345598.w1080.h720.x16FB2A17/"
+            alt=""
+          />
+        </div>
+        <div class="hero-content">
+          <p class="eyebrow">Maxvorstadt, München · Barer Straße 68</p>
+          <h1 id="hero-title">Dein nächster Schnitt in der Maxvorstadt.</h1>
+          <p class="hero-copy">
+            Moderner Friseursalon für Herren, Damen, Bart und Pflege. Wähle deinen Service und sichere dir direkt einen freien Termin.
+          </p>
+          <div class="hero-actions">
+            <a class="primary-action" href="#booking">
+              <i data-lucide="calendar-days" aria-hidden="true"></i>
+              Termin buchen
+            </a>
+            <a class="secondary-action" href="#location">
+              <i data-lucide="map-pin" aria-hidden="true"></i>
+              Standort ansehen
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section class="quick-strip" aria-label="Kurzinfos">
+        <div>
+          <span>Heute geöffnet</span>
+          <strong id="todayCount">09:00 - 17:00</strong>
+        </div>
+        <div>
+          <span>Zahlung</span>
+          <strong>Barzahlung</strong>
+        </div>
+        <div>
+          <span>Standort</span>
+          <strong id="areaText">Maxvorstadt, München</strong>
+        </div>
+      </section>
+
+      <section id="services" class="section">
+        <div class="section-head">
+          <p class="eyebrow">Leistungen</p>
+          <h2>Beliebte Services direkt buchbar.</h2>
+          <p>Klare Preise, transparente Dauer und schnelle Terminwahl.</p>
+        </div>
+        <div class="service-grid" id="serviceGrid" aria-live="polite"></div>
+      </section>
+
+      <section id="booking" class="booking-section" aria-labelledby="booking-title">
+        <div class="booking-copy">
+          <p class="eyebrow">Online buchen</p>
+          <h2 id="booking-title">Freie Zeiten sehen. Direkt buchen.</h2>
+          <p>
+            Die Website ersetzt Treatwell als Buchungsort: Kunden sehen freie und belegte Zeiten direkt hier und reservieren ihren Termin sofort.
+          </p>
+          <ul class="trust-list">
+            <li><i data-lucide="check" aria-hidden="true"></i> Preise und Dauer vor der Buchung sichtbar</li>
+            <li><i data-lucide="banknote" aria-hidden="true"></i> Hinweis: laut Salonprofil nur Barzahlung</li>
+            <li><i data-lucide="calendar-check" aria-hidden="true"></i> Gebuchte Zeiten werden automatisch blockiert</li>
+          </ul>
+        </div>
+
+        <form class="booking-panel" id="bookingForm">
+          <label>
+            Gewünschte Leistung
+            <select id="serviceSelect" name="serviceId" required></select>
+          </label>
+
+          <label>
+            Gewünschter Friseur
+            <select id="staffSelect" name="staffId"></select>
+          </label>
+
+          <div class="date-row" id="dateRow" role="group" aria-label="Datum wählen"></div>
+          <div class="slot-grid" id="slotGrid" role="group" aria-label="Uhrzeit wählen"></div>
+
+          <div class="input-grid">
+            <label>
+              Name
+              <input id="nameInput" name="name" placeholder="Dein Name" required />
+            </label>
+            <label>
+              Telefon
+              <input id="phoneInput" name="phone" placeholder="+49 ..." required />
+            </label>
+          </div>
+
+          <div class="summary" id="bookingSummary">Wähle Service und freien Termin.</div>
+
+          <button class="submit-btn" type="submit">
+            <i data-lucide="calendar-check" aria-hidden="true"></i>
+            Termin buchen
+          </button>
+          <p class="microcopy">Die freien Zeiten passen zur gewählten Leistung, Dauer und zum ausgewählten Mitarbeiter.</p>
+        </form>
+      </section>
+
+      <section id="location" class="section location-section">
+        <div class="section-head">
+          <p class="eyebrow">Standort</p>
+          <h2>Next Level Salon München</h2>
+          <p>Barer Straße 68, 80799 München · Station Schellingstraße ca. 1 Minute entfernt.</p>
+        </div>
+        <div class="location-layout">
+          <div class="hours">
+            <h3>Öffnungszeiten</h3>
+            <dl>
+              <div><dt>Montag</dt><dd>09:30 - 19:00</dd></div>
+              <div><dt>Dienstag</dt><dd>09:30 - 19:00</dd></div>
+              <div><dt>Mittwoch</dt><dd>09:00 - 19:00</dd></div>
+              <div><dt>Donnerstag</dt><dd>09:00 - 19:00</dd></div>
+              <div><dt>Freitag</dt><dd>09:30 - 19:00</dd></div>
+              <div><dt>Samstag</dt><dd>09:00 - 17:00</dd></div>
+              <div><dt>Sonntag</dt><dd>Geschlossen</dd></div>
+            </dl>
+            <p>Sprachen: Deutsch, Englisch, Arabisch.</p>
+            <a class="text-link" href="https://www.google.com/maps/search/?api=1&query=Barer%20Stra%C3%9Fe%2068%20M%C3%BCnchen">
+              Route öffnen
+            </a>
+          </div>
+          <iframe
+            title="Karte von Next Level Salon München"
+            src="https://www.google.com/maps?q=Barer%20Stra%C3%9Fe%2068%20M%C3%BCnchen&output=embed"
+            loading="lazy"
+          ></iframe>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
