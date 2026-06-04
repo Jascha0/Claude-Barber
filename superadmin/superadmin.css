@@ -1,0 +1,107 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f0f0f;
+  --surface: #1a1a1a;
+  --surface2: #242424;
+  --border: #2e2e2e;
+  --text: #f0ede8;
+  --muted: #888;
+  --accent: #c9a84c;
+  --danger: #e05555;
+  --success: #4caf7a;
+  --radius: 10px;
+}
+
+body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 15px; line-height: 1.5; }
+.hidden { display: none !important; }
+
+/* ── LOGIN ── */
+.login-screen { display: grid; place-items: center; min-height: 100vh; padding: 1rem; }
+.login-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 2.5rem 2rem; width: 100%; max-width: 360px; text-align: center; }
+.login-card .brand-mark { font-size: 2rem; margin-bottom: 1rem; }
+.login-card h1 { font-size: 1.3rem; margin-bottom: 1.5rem; }
+.login-card input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 10px 14px; font-size: 0.95rem; margin-bottom: 0.75rem; outline: none; }
+.login-card input:focus { border-color: var(--accent); }
+.login-card button { width: 100%; padding: 10px; background: var(--accent); color: #000; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; }
+
+/* ── TOPBAR ── */
+.topbar { display: flex; align-items: center; gap: 1rem; padding: 0 2rem; height: 60px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.topbar-brand { font-weight: 700; margin-right: auto; }
+
+/* ── BUTTONS ── */
+.btn-primary { padding: 8px 18px; background: var(--accent); color: #000; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; font-size: 0.88rem; }
+.btn-primary:hover { opacity: 0.9; }
+.btn-ghost  { padding: 8px 18px; background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 0.88rem; }
+.btn-ghost:hover { color: var(--text); border-color: var(--text); }
+.btn-danger { padding: 6px 14px; background: transparent; color: var(--danger); border: 1px solid var(--danger); border-radius: 8px; cursor: pointer; font-size: 0.82rem; }
+.btn-success { padding: 6px 14px; background: transparent; color: var(--success); border: 1px solid var(--success); border-radius: 8px; cursor: pointer; font-size: 0.82rem; }
+
+/* ── CONTENT ── */
+.content { max-width: 1000px; margin: 2rem auto; padding: 0 2rem; }
+
+/* ── SALON LIST ── */
+.salon-list { display: flex; flex-direction: column; gap: 12px; }
+
+.salon-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  display: grid;
+  grid-template-columns: 42px 1fr auto;
+  align-items: center;
+  gap: 1rem;
+}
+.salon-card.inactive { opacity: 0.5; }
+
+.salon-initials {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: #000;
+  flex-shrink: 0;
+}
+
+.salon-info .name { font-weight: 700; font-size: 1rem; }
+.salon-info .meta { font-size: 0.82rem; color: var(--muted); margin-top: 2px; }
+.salon-info .slug { font-family: monospace; font-size: 0.8rem; color: var(--accent); }
+
+.salon-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ── MODAL ── */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: grid; place-items: center; padding: 1rem; z-index: 100; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); }
+.modal-header h2 { font-size: 1.1rem; }
+.close-btn { background: none; border: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; padding: 4px 8px; }
+.close-btn:hover { color: var(--text); }
+
+.modal-form { padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+.modal-form label { display: flex; flex-direction: column; gap: 5px; font-size: 0.8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.hint { text-transform: none; font-weight: 400; letter-spacing: 0; font-size: 0.75rem; }
+.modal-form input { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 9px 12px; font-size: 0.9rem; outline: none; }
+.modal-form input:focus { border-color: var(--accent); }
+
+.color-row { display: flex; gap: 8px; align-items: center; }
+.color-row input[type="color"] { width: 42px; height: 36px; padding: 2px; border-radius: 6px; cursor: pointer; border: 1px solid var(--border); background: var(--surface2); }
+.color-row input[type="text"] { flex: 1; }
+
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 0.5rem; }
+
+/* ── MISC ── */
+.error { color: var(--danger); font-size: 0.85rem; }
+.toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--surface); border: 1px solid var(--accent); color: var(--text); padding: 12px 24px; border-radius: var(--radius); font-size: 0.9rem; font-weight: 600; opacity: 0; transition: all 0.3s; pointer-events: none; z-index: 999; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 600px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .salon-card { grid-template-columns: 42px 1fr; }
+  .salon-actions { grid-column: 1 / -1; }
+}

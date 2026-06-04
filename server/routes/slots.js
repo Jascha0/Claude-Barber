@@ -7,19 +7,22 @@ function decimalToTime(h) {
   return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
 }
 
-// GET /api/slots?date=YYYY-MM-DD&serviceId=1&staffId=0
 router.get("/", async (req, res) => {
   const { date, serviceId, staffId } = req.query;
+  const salonId = req.salon.id;
 
   if (!date || !serviceId) return res.status(400).json({ error: "date and serviceId required" });
 
   const [[service]] = await pool.execute(
-    "SELECT * FROM services WHERE id = ? AND active = 1",
-    [Number(serviceId)]
+    "SELECT * FROM services WHERE id = ? AND salon_id = ? AND active = 1",
+    [Number(serviceId), salonId]
   );
   if (!service) return res.status(404).json({ error: "Service not found" });
 
-  const [[hoursRow]] = await pool.execute("SELECT value FROM settings WHERE `key` = 'hours'");
+  const [[hoursRow]] = await pool.execute(
+    "SELECT value FROM settings WHERE salon_id = ? AND `key` = 'hours'",
+    [salonId]
+  );
   const hours = JSON.parse(hoursRow.value);
 
   const dow = new Date(date + "T12:00:00").getDay();
@@ -27,25 +30,26 @@ router.get("/", async (req, res) => {
   if (!dayHours) return res.json([]);
 
   const [open, close] = dayHours;
-  const step = 0.5;
   const durationH = service.duration / 60;
-
   const allSlots = [];
-  for (let t = open; t + durationH <= close; t += step) {
+  for (let t = open; t + durationH <= close; t += 0.5) {
     allSlots.push(decimalToTime(t));
   }
 
-  const [allStaffRows] = await pool.execute("SELECT id FROM staff WHERE active = 1");
+  const [allStaffRows] = await pool.execute(
+    "SELECT id FROM staff WHERE salon_id = ? AND active = 1",
+    [salonId]
+  );
   const allStaff = allStaffRows.map(r => r.id);
   const targetStaff = Number(staffId) === 0 ? allStaff : [Number(staffId)];
 
   const [takenBookings] = await pool.execute(
-    "SELECT staff_id, time_slot FROM bookings WHERE date = ? AND status != 'cancelled'",
-    [date]
+    "SELECT staff_id, time_slot FROM bookings WHERE salon_id = ? AND date = ? AND status != 'cancelled'",
+    [salonId, date]
   );
   const [takenBlocked] = await pool.execute(
-    "SELECT staff_id, time_slot FROM blocked_slots WHERE date = ?",
-    [date]
+    "SELECT staff_id, time_slot FROM blocked_slots WHERE salon_id = ? AND date = ?",
+    [salonId, date]
   );
 
   const takenByStaff = {};
@@ -54,15 +58,10 @@ router.get("/", async (req, res) => {
     takenByStaff[staff_id].add(time_slot);
   });
 
-  const result = allSlots.map(slot => {
-    const available = targetStaff.some(sid => {
-      const taken = takenByStaff[sid] || new Set();
-      return !taken.has(slot);
-    });
-    return { time: slot, available };
-  });
-
-  res.json(result);
+  res.json(allSlots.map(slot => ({
+    time: slot,
+    available: targetStaff.some(sid => !(takenByStaff[sid] || new Set()).has(slot)),
+  })));
 });
 
 module.exports = router;

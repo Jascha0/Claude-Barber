@@ -1,43 +1,32 @@
-const API = "";  // same origin — server serves this file
-
 const DAY_NAMES      = ["So","Mo","Di","Mi","Do","Fr","Sa"];
 const DAY_NAMES_FULL = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
 
-const HOURS = {
-  0: null,
-  1: [9.5, 19], 2: [9.5, 19], 3: [9, 19],
-  4: [9, 19],   5: [9.5, 19], 6: [9, 17],
-};
-
+let SALON    = null;
+let HOURS    = {};
 let SERVICES = [];
 let STAFF    = [];
 
-let state = {
-  serviceId: null,
-  staffId: 0,
-  date: null,
-  slot: null,
-};
+let state = { serviceId: null, staffId: 0, date: null, slot: null };
 
-// ── INIT ──
+// ── BOOT ─────────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
   lucide.createIcons();
+  await loadSalon();
   await loadData();
   buildServiceGrid();
   buildServiceSelect();
   buildStaffSelect();
   buildDateRow();
-  updateTodayHours();
   updateSummary();
 
   document.getElementById("bookingForm").addEventListener("submit", handleSubmit);
-  document.getElementById("serviceSelect").addEventListener("change", (e) => {
+  document.getElementById("serviceSelect").addEventListener("change", e => {
     state.serviceId = Number(e.target.value);
     state.slot = null;
     buildSlotGrid();
     updateSummary();
   });
-  document.getElementById("staffSelect").addEventListener("change", (e) => {
+  document.getElementById("staffSelect").addEventListener("change", e => {
     state.staffId = Number(e.target.value);
     state.slot = null;
     buildSlotGrid();
@@ -45,11 +34,76 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 });
 
+// ── SALON CONFIG ─────────────────────────────────────────────────────────────
+async function loadSalon() {
+  try {
+    SALON = await fetch("/api/salon").then(r => r.json());
+    HOURS = SALON.hours || {};
+    applySalonBranding();
+  } catch {
+    // keep defaults if API unavailable
+  }
+}
+
+function applySalonBranding() {
+  const s = SALON;
+  if (!s) return;
+
+  // CSS accent color
+  document.documentElement.style.setProperty("--accent", s.primaryColor);
+  document.documentElement.style.setProperty("--accent-dim", darken(s.primaryColor, 0.15));
+
+  // Page title + meta
+  document.title = `${s.name} | Online buchen`;
+
+  // DOM slots with data-salon attribute
+  document.querySelectorAll("[data-salon='name']").forEach(el => el.textContent = s.name);
+  document.querySelectorAll("[data-salon='initials']").forEach(el => el.textContent = s.logoInitials);
+  document.querySelectorAll("[data-salon='address']").forEach(el => el.textContent = s.address || "");
+  document.querySelectorAll("[data-salon='city']").forEach(el => el.textContent = s.city || "");
+
+  // Hero image
+  if (s.heroImgUrl) document.getElementById("heroImg").src = s.heroImgUrl;
+
+  // Maps
+  if (s.mapsUrl) {
+    document.getElementById("mapsLink").href = s.mapsUrl;
+    document.getElementById("mapsFrame").src = s.mapsUrl + "&output=embed";
+  }
+
+  // Today's hours in the quick strip
+  const dow = new Date().getDay();
+  const h   = HOURS[dow];
+  document.getElementById("todayHours").textContent = h ? `${fmt(h[0])} – ${fmt(h[1])}` : "Heute geschlossen";
+
+  // Full hours list in location section
+  const dl = document.getElementById("hoursList");
+  if (dl) {
+    dl.innerHTML = DAY_NAMES_FULL.map((day, i) => {
+      const dh = HOURS[i];
+      return `<div><dt>${day}</dt><dd>${dh ? fmt(dh[0]) + " – " + fmt(dh[1]) : "Geschlossen"}</dd></div>`;
+    }).join("");
+  }
+}
+
+function darken(hex, amount) {
+  const n = parseInt(hex.replace("#",""), 16);
+  const r = Math.max(0, (n >> 16) - Math.round(255 * amount));
+  const g = Math.max(0, ((n >> 8) & 0xff) - Math.round(255 * amount));
+  const b = Math.max(0, (n & 0xff) - Math.round(255 * amount));
+  return "#" + [r, g, b].map(v => v.toString(16).padStart(2, "0")).join("");
+}
+
+function fmt(h) {
+  return `${String(Math.floor(h)).padStart(2,"0")}:${String(Math.round((h%1)*60)).padStart(2,"0")}`;
+}
+
+// ── DATA ─────────────────────────────────────────────────────────────────────
 async function loadData() {
   try {
     const [services, staff] = await Promise.all([
-      fetch(`${API}/api/services`).then(r => r.json()),
-      fetch(`${API}/api/staff`).then(r => r.json()),
+      fetch("/api/services").then(r => r.json()),
+      fetch("/api/staff").then(r => r.json()),
     ]);
     SERVICES = services;
     STAFF    = [{ id: 0, name: "Egal (erster freier)" }, ...staff];
@@ -59,22 +113,7 @@ async function loadData() {
   }
 }
 
-// ── TODAY HOURS ──
-function updateTodayHours() {
-  const el = document.getElementById("todayCount");
-  if (!el) return;
-  const dow = new Date().getDay();
-  const h = HOURS[dow];
-  el.textContent = h ? `${fmt(h[0])} - ${fmt(h[1])}` : "Heute geschlossen";
-}
-
-function fmt(h) {
-  const hh = Math.floor(h);
-  const mm = Math.round((h % 1) * 60);
-  return `${String(hh).padStart(2,"0")}:${String(mm).padStart(2,"0")}`;
-}
-
-// ── SERVICE GRID ──
+// ── SERVICE GRID ─────────────────────────────────────────────────────────────
 function buildServiceGrid() {
   const grid = document.getElementById("serviceGrid");
   if (!grid) return;
@@ -83,9 +122,7 @@ function buildServiceGrid() {
       <div class="service-card__name">${s.name}</div>
       <div class="service-card__meta">
         <span class="service-card__price">${s.price} €</span>
-        <span class="service-card__duration">
-          <i data-lucide="clock"></i>${s.duration} Min.
-        </span>
+        <span class="service-card__duration"><i data-lucide="clock"></i>${s.duration} Min.</span>
       </div>
     </div>
   `).join("");
@@ -101,7 +138,7 @@ function selectServiceFromCard(id) {
   document.getElementById("booking").scrollIntoView({ behavior: "smooth" });
 }
 
-// ── SELECTS ──
+// ── SELECTS ──────────────────────────────────────────────────────────────────
 function buildServiceSelect() {
   const sel = document.getElementById("serviceSelect");
   sel.innerHTML = SERVICES.map(s =>
@@ -111,13 +148,12 @@ function buildServiceSelect() {
 }
 
 function buildStaffSelect() {
-  const sel = document.getElementById("staffSelect");
-  sel.innerHTML = STAFF.map(s =>
+  document.getElementById("staffSelect").innerHTML = STAFF.map(s =>
     `<option value="${s.id}">${s.name}</option>`
   ).join("");
 }
 
-// ── DATE ROW ──
+// ── DATE ROW ─────────────────────────────────────────────────────────────────
 function buildDateRow() {
   const row = document.getElementById("dateRow");
   if (!row) return;
@@ -126,10 +162,10 @@ function buildDateRow() {
   for (let i = 0; i < 10; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
-    const dow = d.getDay();
-    const closed = HOURS[dow] === null;
-    const iso = d.toISOString().slice(0, 10);
-    const label = i === 0 ? "Heute" : i === 1 ? "Morgen" : DAY_NAMES[dow];
+    const dow    = d.getDay();
+    const closed = HOURS[dow] === null || HOURS[dow] === undefined;
+    const iso    = d.toISOString().slice(0, 10);
+    const label  = i === 0 ? "Heute" : i === 1 ? "Morgen" : DAY_NAMES[dow];
     html += `
       <button type="button" class="date-btn${closed ? " taken" : ""}" data-date="${iso}"
         onclick="selectDate('${iso}', this)" ${closed ? "disabled" : ""}>
@@ -139,8 +175,8 @@ function buildDateRow() {
       </button>`;
   }
   row.innerHTML = html;
-  const firstOpen = row.querySelector(".date-btn:not(.taken)");
-  if (firstOpen) firstOpen.click();
+  const first = row.querySelector(".date-btn:not(.taken)");
+  if (first) first.click();
 }
 
 function selectDate(iso, btn) {
@@ -152,23 +188,19 @@ function selectDate(iso, btn) {
   updateSummary();
 }
 
-// ── SLOT GRID ──
+// ── SLOT GRID ─────────────────────────────────────────────────────────────────
 async function buildSlotGrid() {
   const grid = document.getElementById("slotGrid");
   if (!grid || !state.date || !state.serviceId) return;
-
   grid.innerHTML = `<p style="color:var(--muted);font-size:.85rem">Lade Zeiten…</p>`;
-
   try {
     const slots = await fetch(
-      `${API}/api/slots?date=${state.date}&serviceId=${state.serviceId}&staffId=${state.staffId}`
+      `/api/slots?date=${state.date}&serviceId=${state.serviceId}&staffId=${state.staffId}`
     ).then(r => r.json());
-
     if (!slots.length) {
       grid.innerHTML = `<p style="color:var(--muted);font-size:.85rem">Heute keine freien Zeiten.</p>`;
       return;
     }
-
     grid.innerHTML = slots.map(({ time, available }) => `
       <button type="button" class="slot-btn${!available ? " taken" : ""}"
         ${!available ? "disabled" : ""} onclick="selectSlot('${time}',this)">${time}</button>
@@ -185,7 +217,7 @@ function selectSlot(slot, btn) {
   updateSummary();
 }
 
-// ── SUMMARY ──
+// ── SUMMARY ──────────────────────────────────────────────────────────────────
 function updateSummary() {
   const el = document.getElementById("bookingSummary");
   if (!el) return;
@@ -196,30 +228,24 @@ function updateSummary() {
       : "Wähle Service und freien Termin.";
     return;
   }
-  const d = new Date(state.date + "T12:00:00");
+  const d     = new Date(state.date + "T12:00:00");
   const staff = STAFF.find(s => s.id === state.staffId);
   el.textContent =
     `${service.name} · ${state.slot} Uhr · ${DAY_NAMES_FULL[d.getDay()]}, ` +
     `${d.getDate()}. ${d.toLocaleString("de-DE",{month:"long"})} · ${staff?.name ?? ""} · ${service.price} €`;
 }
 
-// ── SUBMIT ──
+// ── SUBMIT ────────────────────────────────────────────────────────────────────
 async function handleSubmit(e) {
   e.preventDefault();
-  const name  = document.getElementById("nameInput").value.trim();
-  const phone = document.getElementById("phoneInput").value.trim();
-
-  if (!state.date || !state.slot) {
-    showToast("Bitte wähle ein Datum und eine Uhrzeit.");
-    return;
-  }
+  if (!state.date || !state.slot) { showToast("Bitte wähle ein Datum und eine Uhrzeit."); return; }
 
   const btn = e.target.querySelector(".submit-btn");
   btn.disabled = true;
   btn.textContent = "Wird gebucht…";
 
   try {
-    const res = await fetch(`${API}/api/bookings`, {
+    const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -227,19 +253,17 @@ async function handleSubmit(e) {
         staffId:       state.staffId,
         date:          state.date,
         timeSlot:      state.slot,
-        customerName:  name,
-        customerPhone: phone,
+        customerName:  document.getElementById("nameInput").value.trim(),
+        customerPhone: document.getElementById("phoneInput").value.trim(),
       }),
     });
-
     if (res.status === 409) {
       showToast("Diese Zeit wurde gerade gebucht. Bitte wähle eine andere.");
       buildSlotGrid();
       return;
     }
     if (!res.ok) throw new Error();
-
-    showToast(`Termin bestätigt für ${name} um ${state.slot} Uhr! Wir freuen uns auf deinen Besuch.`);
+    showToast(`Termin bestätigt für ${document.getElementById("nameInput").value.trim()} um ${state.slot} Uhr!`);
     e.target.reset();
     state.slot = null;
     buildSlotGrid();
@@ -253,7 +277,7 @@ async function handleSubmit(e) {
   }
 }
 
-// ── TOAST ──
+// ── TOAST ─────────────────────────────────────────────────────────────────────
 function showToast(msg) {
   const t = document.getElementById("toast");
   t.textContent = msg;

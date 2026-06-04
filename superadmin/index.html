@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Salon Management</title>
+  <link rel="stylesheet" href="superadmin.css" />
+  <script src="superadmin.js" defer></script>
+</head>
+<body>
+
+  <!-- LOGIN -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-card">
+      <div class="brand-mark">⚙</div>
+      <h1>Management Login</h1>
+      <form id="loginForm">
+        <input type="password" id="passwordInput" placeholder="Password" required autocomplete="current-password" />
+        <button type="submit">Sign in</button>
+        <p id="loginError" class="error hidden">Wrong password.</p>
+      </form>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" class="hidden">
+    <header class="topbar">
+      <div class="topbar-brand">⚙ Salon Management</div>
+      <button class="btn-primary" onclick="openModal()">+ New Salon</button>
+      <button class="btn-ghost" onclick="logout()">Sign out</button>
+    </header>
+
+    <main class="content">
+      <div id="salonList" class="salon-list"></div>
+    </main>
+  </div>
+
+  <!-- CREATE / EDIT MODAL -->
+  <div id="modal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalTitle">New Salon</h2>
+        <button class="close-btn" onclick="closeModal()">✕</button>
+      </div>
+      <form id="salonForm" class="modal-form">
+        <input type="hidden" id="editId" />
+
+        <div class="form-grid">
+          <label>Salon Name *
+            <input id="fName" placeholder="Next Level Salon" required />
+          </label>
+          <label>Slug * <span class="hint">(URL-friendly, no spaces)</span>
+            <input id="fSlug" placeholder="next-level-salon" required pattern="[a-z0-9\-]+" />
+          </label>
+          <label>City
+            <input id="fCity" placeholder="München" />
+          </label>
+          <label>Address
+            <input id="fAddress" placeholder="Barer Straße 68, 80799 München" />
+          </label>
+          <label>Phone
+            <input id="fPhone" placeholder="+4989123456" />
+          </label>
+          <label>Custom Domain <span class="hint">(optional, e.g. www.salon.de)</span>
+            <input id="fDomain" placeholder="www.nextelevel.de" />
+          </label>
+          <label>Primary Color
+            <div class="color-row">
+              <input type="color" id="fColor" value="#c9a84c" />
+              <input id="fColorHex" placeholder="#c9a84c" maxlength="7" />
+            </div>
+          </label>
+          <label>Logo Initials <span class="hint">(2-4 chars)</span>
+            <input id="fInitials" placeholder="NL" maxlength="4" />
+          </label>
+          <label>Hero Image URL
+            <input id="fHeroImg" placeholder="https://..." />
+          </label>
+          <label>Google Maps URL
+            <input id="fMapsUrl" placeholder="https://www.google.com/maps?q=..." />
+          </label>
+          <label>Admin Password <span class="hint">(for the salon's /admin panel)</span>
+            <input id="fAdminPw" placeholder="barber123" />
+          </label>
+        </div>
+
+        <p id="formError" class="error hidden"></p>
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn-primary">Save Salon</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</body>
+</html>

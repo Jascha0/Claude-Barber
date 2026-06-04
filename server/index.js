@@ -1,28 +1,31 @@
 require("dotenv").config();
 const express = require("express");
-const cors = require("cors");
-const path = require("path");
+const cors    = require("cors");
+const path    = require("path");
 const { initDb } = require("./db");
+const tenant = require("./middleware/tenant");
 
 const app = express();
-
 app.use(cors());
 app.use(express.json());
 
-// Serve the customer-facing frontend
+// ── Static files (tenant-agnostic templates) ──────────────────────────────────
 app.use(express.static(path.join(__dirname, "..", "ich-will-schauen-was-besser-ist", "barber-demo")));
+app.use("/admin",      express.static(path.join(__dirname, "..", "admin")));
+app.use("/superadmin", express.static(path.join(__dirname, "..", "superadmin")));
 
-// Serve the admin dashboard
-app.use("/admin", express.static(path.join(__dirname, "..", "admin")));
+// ── Super admin API (no tenant context needed) ────────────────────────────────
+app.use("/api/superadmin", require("./routes/superadmin"));
 
-// API routes
-app.use("/api/services", require("./routes/services"));
-app.use("/api/staff",    require("./routes/staff"));
-app.use("/api/slots",    require("./routes/slots"));
-app.use("/api/bookings", require("./routes/bookings"));
-app.use("/api/admin",    require("./routes/admin"));
+// ── Tenant-scoped API routes ──────────────────────────────────────────────────
+app.use("/api/salon",    tenant, require("./routes/salon"));
+app.use("/api/services", tenant, require("./routes/services"));
+app.use("/api/staff",    tenant, require("./routes/staff"));
+app.use("/api/slots",    tenant, require("./routes/slots"));
+app.use("/api/bookings", tenant, require("./routes/bookings"));
+app.use("/api/admin",    tenant, require("./routes/admin"));
 
-// Global error handler
+// ── Global error handler ──────────────────────────────────────────────────────
 app.use((err, req, res, _next) => {
   console.error(err);
   res.status(500).json({ error: "Internal server error" });
@@ -34,8 +37,8 @@ initDb()
   .then(() => {
     require("./reminders");
     app.listen(PORT, () => {
-      console.log(`Next Level Salon server running → http://localhost:${PORT}`);
-      console.log(`Admin panel → http://localhost:${PORT}/admin`);
+      console.log(`Server running → http://localhost:${PORT}`);
+      console.log(`Super admin  → http://localhost:${PORT}/superadmin`);
     });
   })
   .catch(err => {

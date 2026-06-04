@@ -2,8 +2,12 @@ const router = require("express").Router();
 const { pool } = require("../db");
 
 async function auth(req, res, next) {
-  const token = req.headers["x-admin-token"];
-  const [[row]] = await pool.execute("SELECT value FROM settings WHERE `key` = 'admin_password'");
+  const token   = req.headers["x-admin-token"];
+  const salonId = req.salon.id;
+  const [[row]] = await pool.execute(
+    "SELECT value FROM settings WHERE salon_id = ? AND `key` = 'admin_password'",
+    [salonId]
+  );
   if (!token || token !== row?.value) return res.status(401).json({ error: "Unauthorized" });
   next();
 }
@@ -11,26 +15,25 @@ async function auth(req, res, next) {
 // POST /api/admin/login
 router.post("/login", async (req, res) => {
   const { password } = req.body;
-  const [[row]] = await pool.execute("SELECT value FROM settings WHERE `key` = 'admin_password'");
-  if (password === row?.value) {
-    res.json({ token: row.value });
-  } else {
-    res.status(401).json({ error: "Wrong password" });
-  }
+  const [[row]] = await pool.execute(
+    "SELECT value FROM settings WHERE salon_id = ? AND `key` = 'admin_password'",
+    [req.salon.id]
+  );
+  if (password === row?.value) res.json({ token: row.value });
+  else res.status(401).json({ error: "Wrong password" });
 });
 
-// GET /api/admin/bookings?date=YYYY-MM-DD&status=confirmed
+// GET /api/admin/bookings?date=YYYY-MM-DD&status=...
 router.get("/bookings", auth, async (req, res) => {
   const { date, status } = req.query;
   let sql = `
-    SELECT b.*, s.name as service_name, s.price, s.duration,
-           st.name as staff_name
+    SELECT b.*, s.name as service_name, s.price, s.duration, st.name as staff_name
     FROM bookings b
     JOIN services s  ON b.service_id = s.id
     JOIN staff    st ON b.staff_id   = st.id
-    WHERE 1=1
+    WHERE b.salon_id = ?
   `;
-  const params = [];
+  const params = [req.salon.id];
   if (date)   { sql += " AND b.date = ?";   params.push(date); }
   if (status) { sql += " AND b.status = ?"; params.push(status); }
   sql += " ORDER BY b.date, b.time_slot";
@@ -46,9 +49,9 @@ router.get("/bookings/today", auth, async (req, res) => {
     FROM bookings b
     JOIN services s  ON b.service_id = s.id
     JOIN staff    st ON b.staff_id   = st.id
-    WHERE b.date = ? AND b.status != 'cancelled'
+    WHERE b.salon_id = ? AND b.date = ? AND b.status != 'cancelled'
     ORDER BY b.time_slot
-  `, [today]);
+  `, [req.salon.id, today]);
   res.json(rows);
 });
 
@@ -58,14 +61,20 @@ router.patch("/bookings/:id", auth, async (req, res) => {
   const allowed = ["confirmed", "done", "no-show", "cancelled"];
   if (!allowed.includes(status)) return res.status(400).json({ error: "Invalid status" });
   const id = Number(req.params.id);
-  await pool.execute("UPDATE bookings SET status = ? WHERE id = ?", [status, id]);
+  await pool.execute(
+    "UPDATE bookings SET status = ? WHERE id = ? AND salon_id = ?",
+    [status, id, req.salon.id]
+  );
   const [[updated]] = await pool.execute("SELECT * FROM bookings WHERE id = ?", [id]);
   res.json(updated);
 });
 
 // DELETE /api/admin/bookings/:id
 router.delete("/bookings/:id", auth, async (req, res) => {
-  await pool.execute("UPDATE bookings SET status = 'cancelled' WHERE id = ?", [Number(req.params.id)]);
+  await pool.execute(
+    "UPDATE bookings SET status = 'cancelled' WHERE id = ? AND salon_id = ?",
+    [Number(req.params.id), req.salon.id]
+  );
   res.json({ ok: true });
 });
 
@@ -74,8 +83,9 @@ router.post("/blocked-slots", auth, async (req, res) => {
   const { staffId, date, timeSlot, reason } = req.body;
   try {
     await pool.execute(
-      "INSERT INTO blocked_slots (staff_id, date, time_slot, reason) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE reason = VALUES(reason)",
-      [Number(staffId), date, timeSlot, reason || null]
+      `INSERT INTO blocked_slots (salon_id, staff_id, date, time_slot, reason) VALUES (?,?,?,?,?)
+       ON DUPLICATE KEY UPDATE reason = VALUES(reason)`,
+      [req.salon.id, Number(staffId), date, timeSlot, reason || null]
     );
     res.status(201).json({ ok: true });
   } catch (e) {
@@ -87,18 +97,19 @@ router.post("/blocked-slots", auth, async (req, res) => {
 router.delete("/blocked-slots", auth, async (req, res) => {
   const { staffId, date, timeSlot } = req.body;
   await pool.execute(
-    "DELETE FROM blocked_slots WHERE staff_id = ? AND date = ? AND time_slot = ?",
-    [Number(staffId), date, timeSlot]
+    "DELETE FROM blocked_slots WHERE salon_id = ? AND staff_id = ? AND date = ? AND time_slot = ?",
+    [req.salon.id, Number(staffId), date, timeSlot]
   );
   res.json({ ok: true });
 });
 
 // GET /api/admin/stats
 router.get("/stats", auth, async (req, res) => {
+  const sid = req.salon.id;
   const today = new Date().toISOString().slice(0, 10);
   const weekStart = new Date();
   weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
-  const weekStartStr = weekStart.toISOString().slice(0, 10);
+  const ws = weekStart.toISOString().slice(0, 10);
 
   const [
     [[{ n: todayCount }]],
@@ -107,19 +118,18 @@ router.get("/stats", auth, async (req, res) => {
     [[{ t: weekRevenue }]],
     [[{ n: totalBookings }]],
   ] = await Promise.all([
-    pool.execute("SELECT COUNT(*) as n FROM bookings WHERE date = ? AND status != 'cancelled'", [today]),
-    pool.execute("SELECT COALESCE(SUM(s.price),0) as t FROM bookings b JOIN services s ON b.service_id=s.id WHERE b.date = ? AND b.status='done'", [today]),
-    pool.execute("SELECT COUNT(*) as n FROM bookings WHERE date >= ? AND status != 'cancelled'", [weekStartStr]),
-    pool.execute("SELECT COALESCE(SUM(s.price),0) as t FROM bookings b JOIN services s ON b.service_id=s.id WHERE b.date >= ? AND b.status='done'", [weekStartStr]),
-    pool.execute("SELECT COUNT(*) as n FROM bookings WHERE status != 'cancelled'"),
+    pool.execute("SELECT COUNT(*) as n FROM bookings WHERE salon_id=? AND date=? AND status!='cancelled'", [sid, today]),
+    pool.execute("SELECT COALESCE(SUM(s.price),0) as t FROM bookings b JOIN services s ON b.service_id=s.id WHERE b.salon_id=? AND b.date=? AND b.status='done'", [sid, today]),
+    pool.execute("SELECT COUNT(*) as n FROM bookings WHERE salon_id=? AND date>=? AND status!='cancelled'", [sid, ws]),
+    pool.execute("SELECT COALESCE(SUM(s.price),0) as t FROM bookings b JOIN services s ON b.service_id=s.id WHERE b.salon_id=? AND b.date>=? AND b.status='done'", [sid, ws]),
+    pool.execute("SELECT COUNT(*) as n FROM bookings WHERE salon_id=? AND status!='cancelled'", [sid]),
   ]);
-
   res.json({ todayCount, todayRevenue, weekCount, weekRevenue, totalBookings });
 });
 
 // GET /api/admin/services
 router.get("/services", auth, async (req, res) => {
-  const [rows] = await pool.execute("SELECT * FROM services ORDER BY id");
+  const [rows] = await pool.execute("SELECT * FROM services WHERE salon_id = ? ORDER BY id", [req.salon.id]);
   res.json(rows);
 });
 
@@ -127,8 +137,8 @@ router.patch("/services/:id", auth, async (req, res) => {
   const { name, price, duration, active } = req.body;
   const id = Number(req.params.id);
   await pool.execute(
-    "UPDATE services SET name=COALESCE(?,name), price=COALESCE(?,price), duration=COALESCE(?,duration), active=COALESCE(?,active) WHERE id=?",
-    [name ?? null, price ?? null, duration ?? null, active ?? null, id]
+    "UPDATE services SET name=COALESCE(?,name), price=COALESCE(?,price), duration=COALESCE(?,duration), active=COALESCE(?,active) WHERE id=? AND salon_id=?",
+    [name ?? null, price ?? null, duration ?? null, active ?? null, id, req.salon.id]
   );
   const [[updated]] = await pool.execute("SELECT * FROM services WHERE id=?", [id]);
   res.json(updated);
@@ -136,7 +146,7 @@ router.patch("/services/:id", auth, async (req, res) => {
 
 // GET /api/admin/staff
 router.get("/staff", auth, async (req, res) => {
-  const [rows] = await pool.execute("SELECT * FROM staff ORDER BY id");
+  const [rows] = await pool.execute("SELECT * FROM staff WHERE salon_id = ? ORDER BY id", [req.salon.id]);
   res.json(rows);
 });
 
@@ -144,8 +154,8 @@ router.patch("/staff/:id", auth, async (req, res) => {
   const { name, active } = req.body;
   const id = Number(req.params.id);
   await pool.execute(
-    "UPDATE staff SET name=COALESCE(?,name), active=COALESCE(?,active) WHERE id=?",
-    [name ?? null, active ?? null, id]
+    "UPDATE staff SET name=COALESCE(?,name), active=COALESCE(?,active) WHERE id=? AND salon_id=?",
+    [name ?? null, active ?? null, id, req.salon.id]
   );
   const [[updated]] = await pool.execute("SELECT * FROM staff WHERE id=?", [id]);
   res.json(updated);
