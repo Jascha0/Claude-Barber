@@ -1,5 +1,6 @@
 const router = require("express").Router();
 const { pool } = require("../db");
+const { rules, rejectIfInvalid } = require("../middleware/validate");
 
 async function auth(req, res, next) {
   const token   = req.headers["x-admin-token"];
@@ -13,7 +14,7 @@ async function auth(req, res, next) {
 }
 
 // POST /api/admin/login
-router.post("/login", async (req, res) => {
+router.post("/login", rules.login, rejectIfInvalid, async (req, res) => {
   const { password } = req.body;
   const [[row]] = await pool.execute(
     "SELECT value FROM settings WHERE salon_id = ? AND `key` = 'admin_password'",
@@ -184,7 +185,7 @@ router.patch("/whatsapp-settings", auth, async (req, res) => {
 });
 
 // POST /api/admin/services — add new service
-router.post("/services", auth, async (req, res) => {
+router.post("/services", auth, rules.addService, rejectIfInvalid, async (req, res) => {
   const { name, price, duration } = req.body;
   if (!name || !price || !duration) return res.status(400).json({ error: "name, price and duration required" });
   const [result] = await pool.execute(
@@ -202,7 +203,7 @@ router.delete("/services/:id", auth, async (req, res) => {
 });
 
 // POST /api/admin/staff — add new staff member
-router.post("/staff", auth, async (req, res) => {
+router.post("/staff", auth, rules.addStaff, rejectIfInvalid, async (req, res) => {
   const { name } = req.body;
   if (!name) return res.status(400).json({ error: "name required" });
   const [result] = await pool.execute(
@@ -229,7 +230,7 @@ router.get("/salon", auth, async (req, res) => {
 });
 
 // PATCH /api/admin/salon — update salon public info
-router.patch("/salon", auth, async (req, res) => {
+router.patch("/salon", auth, rules.updateSalon, rejectIfInvalid, async (req, res) => {
   const { name, address, phone, city, hero_img_url, maps_url } = req.body;
   await pool.execute(
     `UPDATE salons SET
@@ -260,7 +261,7 @@ router.patch("/hours", auth, async (req, res) => {
 });
 
 // PATCH /api/admin/password
-router.patch("/password", auth, async (req, res) => {
+router.patch("/password", auth, rules.changePassword, rejectIfInvalid, async (req, res) => {
   const { newPassword } = req.body;
   if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: "Min. 6 Zeichen" });
   await pool.execute(

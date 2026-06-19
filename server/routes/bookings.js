@@ -1,8 +1,9 @@
 const router = require("express").Router();
 const { pool } = require("../db");
 const { sendBookingConfirmationToCustomer, sendBookingAlertToStaff } = require("../messaging");
+const { rules, rejectIfInvalid } = require("../middleware/validate");
 
-router.post("/", async (req, res) => {
+router.post("/", rules.booking, rejectIfInvalid, async (req, res) => {
   const { serviceId, staffId, date, timeSlot, customerName, customerPhone } = req.body;
   const salonId = req.salon.id;
 

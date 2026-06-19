@@ -9,7 +9,29 @@ const tenant     = require("./middleware/tenant");
 
 const app = express();
 
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc:  ["'self'"],
+      scriptSrc:   ["'self'", "https://unpkg.com"],
+      styleSrc:    ["'self'", "'unsafe-inline'"],
+      imgSrc:      ["'self'", "data:", "https:"],
+      frameSrc:    ["https://www.google.com"],
+      connectSrc:  ["'self'"],
+      fontSrc:     ["'self'"],
+      objectSrc:   ["'none'"],
+      baseUri:     ["'self'"],
+      formAction:  ["'self'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}));
+
+app.use((_, res, next) => {
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+  next();
+});
+
 app.use(cors({ origin: process.env.ALLOWED_ORIGIN || true }));
 
 // Raw body needed for WhatsApp webhook signature verification — must come before express.json()
