@@ -1,4 +1,5 @@
-const router = require("express").Router();
+const router  = require("express").Router();
+const bcrypt  = require("bcryptjs");
 const { pool } = require("../db");
 const { rules, rejectIfInvalid } = require("../middleware/validate");
 
@@ -9,7 +10,9 @@ async function auth(req, res, next) {
     "SELECT value FROM settings WHERE salon_id = ? AND `key` = 'admin_password'",
     [salonId]
   );
-  if (!token || token !== row?.value) return res.status(401).json({ error: "Unauthorized" });
+  if (!token || !row?.value) return res.status(401).json({ error: "Unauthorized" });
+  const valid = await bcrypt.compare(token, row.value);
+  if (!valid) return res.status(401).json({ error: "Unauthorized" });
   next();
 }
 
@@ -20,8 +23,10 @@ router.post("/login", rules.login, rejectIfInvalid, async (req, res) => {
     "SELECT value FROM settings WHERE salon_id = ? AND `key` = 'admin_password'",
     [req.salon.id]
   );
-  if (password === row?.value) res.json({ token: row.value });
-  else res.status(401).json({ error: "Wrong password" });
+  if (!row?.value) return res.status(401).json({ error: "Wrong password" });
+  const valid = await bcrypt.compare(password, row.value);
+  if (!valid) return res.status(401).json({ error: "Wrong password" });
+  res.json({ token: password });
 });
 
 // GET /api/admin/bookings?date=YYYY-MM-DD&status=...
@@ -263,10 +268,10 @@ router.patch("/hours", auth, async (req, res) => {
 // PATCH /api/admin/password
 router.patch("/password", auth, rules.changePassword, rejectIfInvalid, async (req, res) => {
   const { newPassword } = req.body;
-  if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: "Min. 6 Zeichen" });
+  const hash = await bcrypt.hash(newPassword, 12);
   await pool.execute(
     "INSERT INTO settings (salon_id,`key`,value) VALUES (?,?,?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
-    [req.salon.id, "admin_password", newPassword]
+    [req.salon.id, "admin_password", hash]
   );
   res.json({ ok: true });
 });

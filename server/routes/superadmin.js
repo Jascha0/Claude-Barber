@@ -1,4 +1,5 @@
 const router = require("express").Router();
+const bcrypt = require("bcryptjs");
 const { pool } = require("../db");
 
 function superAuth(req, res, next) {
@@ -63,11 +64,12 @@ router.post("/salons", superAuth, async (req, res) => {
       0: null, 1: [9.5, 19], 2: [9.5, 19], 3: [9, 19],
       4: [9, 19], 5: [9.5, 19], 6: [9, 17],
     });
+    const pwHash = await bcrypt.hash(adminPassword || "barber123", 12);
     await conn.execute(
       "INSERT INTO settings (salon_id, `key`, value) VALUES (?,?,?),(?,?,?),(?,?,?),(?,?,?)",
       [
         salonId, "hours",           hours,
-        salonId, "admin_password",  adminPassword || "barber123",
+        salonId, "admin_password",  pwHash,
         salonId, "twilio_enabled",  "false",
         salonId, "salon_phone",     phone || "",
       ]
