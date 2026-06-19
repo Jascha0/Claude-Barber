@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Admin – Next Level Salon</title>
-  <link rel="stylesheet" href="admin.css" />
+  <link rel="stylesheet" href="/admin/admin.css" />
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
-  <script src="admin.js" defer></script>
+  <script src="/admin/admin.js" defer></script>
 </head>
 <body>
 
@@ -43,6 +43,12 @@
         </button>
         <button class="nav-item" data-view="staff" onclick="switchView('staff', this)">
           <i data-lucide="users"></i> Mitarbeiter
+        </button>
+        <button class="nav-item" data-view="whatsapp" onclick="switchView('whatsapp', this)">
+          <i data-lucide="message-circle"></i> WhatsApp
+        </button>
+        <button class="nav-item" data-view="settings" onclick="switchView('settings', this)">
+          <i data-lucide="settings"></i> Einstellungen
         </button>
       </nav>
       <button class="logout-btn" onclick="logout()">
@@ -82,14 +88,115 @@
 
       <!-- SERVICES VIEW -->
       <div id="view-services" class="view hidden">
-        <div class="view-header"><h2>Services</h2></div>
+        <div class="view-header">
+          <h2>Services</h2>
+          <button class="cfg-add-btn" onclick="openServiceForm()">+ Service hinzufügen</button>
+        </div>
+        <div id="serviceFormWrap" class="cfg-form hidden">
+          <input id="svcName"     placeholder="Name (z.B. Herrenhaarschnitt)" />
+          <input id="svcPrice"    placeholder="Preis (€)" type="number" min="1" />
+          <input id="svcDuration" placeholder="Dauer (Min.)" type="number" min="5" />
+          <button onclick="saveService()">Speichern</button>
+          <button class="cfg-cancel" onclick="closeServiceForm()">Abbrechen</button>
+        </div>
         <div id="servicesList" class="settings-list"></div>
       </div>
 
       <!-- STAFF VIEW -->
       <div id="view-staff" class="view hidden">
-        <div class="view-header"><h2>Mitarbeiter</h2></div>
+        <div class="view-header">
+          <h2>Mitarbeiter</h2>
+          <button class="cfg-add-btn" onclick="openStaffForm()">+ Mitarbeiter hinzufügen</button>
+        </div>
+        <div id="staffFormWrap" class="cfg-form hidden">
+          <input id="staffName" placeholder="Name (z.B. Ali)" />
+          <button onclick="saveStaff()">Speichern</button>
+          <button class="cfg-cancel" onclick="closeStaffForm()">Abbrechen</button>
+        </div>
         <div id="staffList" class="settings-list"></div>
+      </div>
+
+      <!-- SETTINGS VIEW -->
+      <div id="view-settings" class="view hidden">
+        <div class="view-header"><h2>Einstellungen</h2></div>
+
+        <!-- Salon Info -->
+        <div class="cfg-section">
+          <h3>Salon-Infos</h3>
+          <div class="cfg-grid">
+            <label>Name<input id="cfgName" placeholder="Salonname" /></label>
+            <label>Stadt<input id="cfgCity" placeholder="München" /></label>
+            <label>Adresse<input id="cfgAddress" placeholder="Musterstraße 1, 80000 München" /></label>
+            <label>Telefon<input id="cfgPhone" placeholder="+4989..." /></label>
+            <label>Hero-Bild URL<input id="cfgHeroImg" placeholder="https://..." /></label>
+            <label>Google Maps URL<input id="cfgMapsUrl" placeholder="https://www.google.com/maps?q=..." /></label>
+          </div>
+          <button class="cfg-save-btn" onclick="saveSalonInfo()">Speichern</button>
+        </div>
+
+        <!-- Opening Hours -->
+        <div class="cfg-section">
+          <h3>Öffnungszeiten</h3>
+          <div id="hoursList" class="cfg-hours"></div>
+          <button class="cfg-save-btn" onclick="saveHours()">Öffnungszeiten speichern</button>
+        </div>
+
+        <!-- Password -->
+        <div class="cfg-section">
+          <h3>Passwort ändern</h3>
+          <div class="cfg-grid">
+            <label>Neues Passwort<input id="cfgNewPw" type="password" placeholder="Min. 6 Zeichen" /></label>
+            <label>Bestätigen<input id="cfgConfirmPw" type="password" placeholder="Wiederholen" /></label>
+          </div>
+          <button class="cfg-save-btn" onclick="savePassword()">Passwort ändern</button>
+        </div>
+      </div>
+
+      <!-- WHATSAPP VIEW -->
+      <div id="view-whatsapp" class="view hidden">
+        <div class="view-header"><h2>WhatsApp</h2></div>
+
+        <div class="wa-section">
+          <h3>Salon-Verbindung</h3>
+          <p class="wa-hint">Trage hier die Zugangsdaten deiner WhatsApp Business Nummer ein. Diese findest du im <a href="https://developers.facebook.com" target="_blank" rel="noopener">Meta Developer Console</a> unter WhatsApp → API Setup.</p>
+
+          <div class="wa-field">
+            <label>WhatsApp aktiviert</label>
+            <label class="toggle">
+              <input type="checkbox" id="waEnabled" onchange="saveWaSetting('whatsapp_enabled', this.checked ? 'true' : 'false')" />
+              <div class="toggle-track"></div>
+            </label>
+          </div>
+
+          <div class="wa-field">
+            <label>Phone Number ID <span class="wa-slot">← OPEN SLOT: aus Meta Developer Console</span></label>
+            <input id="waPhoneNumberId" placeholder="z.B. 123456789012345" onblur="saveWaSetting('meta_phone_number_id', this.value)" />
+          </div>
+
+          <div class="wa-field">
+            <label>Access Token <span class="wa-slot">← OPEN SLOT: Permanent System User Token aus Meta</span></label>
+            <input id="waToken" type="password" placeholder="EAAxxxxxxxx..." onblur="saveWaSetting('meta_waba_token', this.value)" />
+          </div>
+
+          <div class="wa-field">
+            <label>Webhook URL <span class="wa-hint-inline">(in Meta Developer Console eintragen)</span></label>
+            <div class="wa-copy-row">
+              <input id="waWebhookUrl" readonly />
+              <button onclick="copyWebhookUrl()">Kopieren</button>
+            </div>
+          </div>
+
+          <div class="wa-field">
+            <label>Webhook Verify Token <span class="wa-hint-inline">(in Meta eintragen)</span></label>
+            <input id="waVerifyToken" readonly placeholder="Wird vom Server gesetzt (META_WEBHOOK_VERIFY_TOKEN)" />
+          </div>
+        </div>
+
+        <div class="wa-section">
+          <h3>Mitarbeiter WhatsApp-Nummern</h3>
+          <p class="wa-hint">Jeder Friseur gibt hier seine persönliche WhatsApp-Nummer ein. Bei einer Buchung wird nur er benachrichtigt.</p>
+          <div id="staffWaList" class="settings-list"></div>
+        </div>
       </div>
 
     </main>

@@ -1,6 +1,6 @@
 const cron = require("node-cron");
 const { pool } = require("./db");
-const { sendReminder } = require("./sms");
+const { sendReminder } = require("./messaging");
 
 // Runs every day at 18:00 — sends reminders for all salons' bookings tomorrow
 cron.schedule("0 18 * * *", async () => {

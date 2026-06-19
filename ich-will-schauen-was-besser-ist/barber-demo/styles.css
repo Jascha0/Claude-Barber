@@ -446,11 +446,29 @@ body {
 }
 
 @media (max-width: 640px) {
-  .topbar { padding: 0 1rem; gap: 1rem; }
+  .topbar { padding: 0 1rem; gap: 0.75rem; }
+  .top-cta span { display: none; }
+  .top-cta { padding: 8px 12px; }
   .nav { display: none; }
-  .hero { padding: 2rem 1rem; min-height: 75vh; }
+  .hero { padding: 2rem 1rem; min-height: 70vh; }
+  .hero-content h1 { font-size: 1.8rem; }
   .quick-strip { flex-wrap: wrap; }
   .quick-strip > div { flex: 1 1 45%; border-right: none; border-bottom: 1px solid var(--border); }
-  .section, .booking-section { padding: 3rem 1rem; }
+  .section, .booking-section { padding: 2.5rem 1rem; }
+  .section-head h2 { font-size: 1.4rem; }
   .input-grid { grid-template-columns: 1fr; }
+  .booking-panel { padding: 1.25rem; gap: 1rem; }
+  .service-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .service-card { padding: 1rem; }
+}
+
+@media (max-width: 400px) {
+  .service-grid { grid-template-columns: 1fr; }
+  .slot-grid { grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); }
+  .date-row { gap: 6px; }
+  .date-btn { padding: 8px 10px; font-size: 0.75rem; }
+  .date-btn strong { font-size: 1rem; }
+  .quick-strip > div { flex: 1 1 100%; }
+  .hero-actions { flex-direction: column; }
+  .primary-action, .secondary-action { justify-content: center; }
 }

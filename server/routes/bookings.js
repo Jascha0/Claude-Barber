@@ -1,6 +1,6 @@
 const router = require("express").Router();
 const { pool } = require("../db");
-const { sendConfirmation } = require("../sms");
+const { sendBookingConfirmationToCustomer, sendBookingAlertToStaff } = require("../messaging");
 
 router.post("/", async (req, res) => {
   const { serviceId, staffId, date, timeSlot, customerName, customerPhone } = req.body;
@@ -36,15 +36,33 @@ router.post("/", async (req, res) => {
   const assignedStaff = targetStaff.find(id => !busy.has(id));
   if (!assignedStaff) return res.status(409).json({ error: "Slot no longer available" });
 
+  // Per-customer booking limit
+  const [[limitRow]] = await pool.execute(
+    "SELECT value FROM settings WHERE salon_id = ? AND `key` = 'max_bookings_per_customer'",
+    [salonId]
+  );
+  const limit = limitRow ? Number(limitRow.value) : 3;
+  const [[{ n: activeCount }]] = await pool.execute(
+    "SELECT COUNT(*) as n FROM bookings WHERE salon_id = ? AND customer_phone = ? AND status = 'confirmed' AND date >= CURDATE()",
+    [salonId, customerPhone.trim()]
+  );
+  if (activeCount >= limit) {
+    return res.status(409).json({ error: `Maximale Anzahl von ${limit} aktiven Buchungen pro Kunde erreicht.` });
+  }
+
   try {
     const [result] = await pool.execute(
       "INSERT INTO bookings (salon_id, service_id, staff_id, date, time_slot, customer_name, customer_phone) VALUES (?,?,?,?,?,?,?)",
       [salonId, service.id, assignedStaff, date, timeSlot, customerName.trim(), customerPhone.trim()]
     );
     const [[booking]]  = await pool.execute("SELECT * FROM bookings WHERE id = ?", [result.insertId]);
-    const [[staffRow]] = await pool.execute("SELECT name FROM staff WHERE id = ?", [assignedStaff]);
+    const [[staffRow]] = await pool.execute("SELECT * FROM staff WHERE id = ?", [assignedStaff]);
+    const [[salon]]    = await pool.execute("SELECT * FROM salons WHERE id = ?", [salonId]);
 
-    sendConfirmation({ booking, service, staff: staffRow, salonId }).catch(() => {});
+    // Fire-and-forget: customer confirmation + staff alert via WhatsApp
+    sendBookingConfirmationToCustomer({ booking, service, staff: staffRow, salon, salonId }).catch(() => {});
+    sendBookingAlertToStaff({ booking, service, staff: staffRow, salon, salonId }).catch(() => {});
+
     res.status(201).json({ booking, service, staff: staffRow });
   } catch (e) {
     if (e.code === "ER_DUP_ENTRY") return res.status(409).json({ error: "Slot no longer available" });

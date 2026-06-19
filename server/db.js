@@ -13,6 +13,10 @@ const pool = mysql.createPool({
 async function initDb() {
   const conn = await pool.getConnection();
   try {
+    // Migration: add WhatsApp columns to existing tables if missing
+    await conn.execute("ALTER TABLE salons ADD COLUMN IF NOT EXISTS whatsapp_phone VARCHAR(30)").catch(() => {});
+    await conn.execute("ALTER TABLE staff  ADD COLUMN IF NOT EXISTS whatsapp_phone VARCHAR(30)").catch(() => {});
+
     // salons is the root table — must come first
     await conn.execute(`
       CREATE TABLE IF NOT EXISTS salons (
@@ -46,10 +50,11 @@ async function initDb() {
 
     await conn.execute(`
       CREATE TABLE IF NOT EXISTS staff (
-        id        INT PRIMARY KEY AUTO_INCREMENT,
-        salon_id  INT NOT NULL,
-        name      VARCHAR(100) NOT NULL,
-        active    TINYINT NOT NULL DEFAULT 1,
+        id             INT PRIMARY KEY AUTO_INCREMENT,
+        salon_id       INT NOT NULL,
+        name           VARCHAR(100) NOT NULL,
+        active         TINYINT NOT NULL DEFAULT 1,
+        whatsapp_phone VARCHAR(30),
         CONSTRAINT fk_stf_salon FOREIGN KEY (salon_id) REFERENCES salons(id)
       )
     `);

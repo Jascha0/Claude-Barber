@@ -17,6 +17,9 @@ app.use("/superadmin", express.static(path.join(__dirname, "..", "superadmin")))
 // ── Super admin API (no tenant context needed) ────────────────────────────────
 app.use("/api/superadmin", require("./routes/superadmin"));
 
+// ── Meta WhatsApp webhook (no tenant context — identified by phone number ID) ─
+app.use("/api/webhook", require("./routes/webhook"));
+
 // ── Tenant-scoped API routes ──────────────────────────────────────────────────
 app.use("/api/salon",    tenant, require("./routes/salon"));
 app.use("/api/services", tenant, require("./routes/services"));

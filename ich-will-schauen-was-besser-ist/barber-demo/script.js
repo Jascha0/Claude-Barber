@@ -258,7 +258,8 @@ async function handleSubmit(e) {
       }),
     });
     if (res.status === 409) {
-      showToast("Diese Zeit wurde gerade gebucht. Bitte wähle eine andere.");
+      const data = await res.json().catch(() => ({}));
+      showToast(data.error || "Diese Zeit wurde gerade gebucht. Bitte wähle eine andere.");
       buildSlotGrid();
       return;
     }
