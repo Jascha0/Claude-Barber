@@ -10,9 +10,30 @@
  *   https://claude-barber-production.up.railway.app/api/webhook/whatsapp
  */
 
-const router = require("express").Router();
+const router  = require("express").Router();
+const crypto  = require("crypto");
 const { pool } = require("../db");
 const { sendBookingLinkReply } = require("../messaging");
+
+function verifyMetaSignature(req, res, next) {
+  const secret = process.env.META_APP_SECRET;
+  if (!secret) return next(); // skip if not configured yet
+
+  const sig = req.headers["x-hub-signature-256"];
+  if (!sig) return res.sendStatus(403);
+
+  const expected = "sha256=" + crypto
+    .createHmac("sha256", secret)
+    .update(req.body)
+    .digest("hex");
+
+  const sigBuf = Buffer.from(sig);
+  const expBuf = Buffer.from(expected);
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    return res.sendStatus(403);
+  }
+  next();
+}
 
 // ── Webhook verification (Meta calls this once during setup) ──────────────────
 router.get("/whatsapp", (req, res) => {
@@ -28,12 +49,15 @@ router.get("/whatsapp", (req, res) => {
 });
 
 // ── Incoming messages ─────────────────────────────────────────────────────────
-router.post("/whatsapp", async (req, res) => {
+router.post("/whatsapp", verifyMetaSignature, async (req, res) => {
+  // Parse body (received as raw Buffer for signature verification)
+  let body;
+  try { body = JSON.parse(req.body); } catch { return res.sendStatus(200); }
   // Always respond 200 immediately — Meta will retry if we're slow
   res.sendStatus(200);
 
   try {
-    const entry = req.body?.entry?.[0];
+    const entry = body?.entry?.[0];
     const change = entry?.changes?.[0];
     if (change?.field !== "messages") return;
 

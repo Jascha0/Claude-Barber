@@ -1,13 +1,40 @@
 require("dotenv").config();
-const express = require("express");
-const cors    = require("cors");
-const path    = require("path");
+const express    = require("express");
+const cors       = require("cors");
+const helmet     = require("helmet");
+const rateLimit  = require("express-rate-limit");
+const path       = require("path");
 const { initDb } = require("./db");
-const tenant = require("./middleware/tenant");
+const tenant     = require("./middleware/tenant");
 
 const app = express();
-app.use(cors());
+
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(cors({ origin: process.env.ALLOWED_ORIGIN || true }));
+
+// Raw body needed for WhatsApp webhook signature verification — must come before express.json()
+app.use("/api/webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
+
+// Rate limiters
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many login attempts. Try again in 15 minutes." },
+});
+
+const bookingLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many booking requests. Try again later." },
+});
+
+app.use("/api/admin/login",  loginLimiter);
+app.use("/api/bookings",     bookingLimiter);
 
 // ── Static files (tenant-agnostic templates) ──────────────────────────────────
 app.use(express.static(path.join(__dirname, "..", "ich-will-schauen-was-besser-ist", "barber-demo")));
