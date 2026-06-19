@@ -32,7 +32,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 2.5rem 2rem;
-  width: 320px;
+  width: min(320px, calc(100% - 2rem));
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -425,6 +425,12 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
 @media (max-width: 600px) {
   .cfg-grid { grid-template-columns: 1fr; }
   .cfg-hour-row { flex-wrap: wrap; }
+
+  /* WhatsApp fields stack vertically */
+  .wa-field { flex-direction: column; align-items: flex-start; }
+  .wa-field input { width: 100%; }
+  .wa-copy-row { width: 100%; }
+  .wa-staff-input input { width: 100%; }
 }
 
 /* ── WHATSAPP VIEW ── */
@@ -532,7 +538,10 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
   .nav-item i { width: 18px; height: 18px; }
 
   /* Content gets bottom padding so bottom nav doesn't overlap */
-  .content { padding: 1rem; padding-bottom: 72px; }
+  .content { padding: 1rem; padding-bottom: 80px; }
+
+  /* Toast above bottom nav */
+  .toast { bottom: 80px; }
 
   /* Booking cards stack on mobile */
   .booking-card {

@@ -104,4 +104,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
   .form-grid { grid-template-columns: 1fr; }
   .salon-card { grid-template-columns: 42px 1fr; }
   .salon-actions { grid-column: 1 / -1; }
+  .topbar { padding: 0 1rem; gap: 0.5rem; }
+  .topbar-brand { font-size: 0.85rem; }
+  .btn-primary, .btn-ghost { padding: 7px 12px; font-size: 0.8rem; }
+  .content { padding: 0 1rem; }
 }
