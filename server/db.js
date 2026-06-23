@@ -14,8 +14,12 @@ async function initDb() {
   const conn = await pool.getConnection();
   try {
     // Migration: add WhatsApp columns to existing tables if missing
-    await conn.execute("ALTER TABLE salons ADD COLUMN IF NOT EXISTS whatsapp_phone VARCHAR(30)").catch(() => {});
-    await conn.execute("ALTER TABLE staff  ADD COLUMN IF NOT EXISTS whatsapp_phone VARCHAR(30)").catch(() => {});
+    // MySQL on Railway does not support ADD COLUMN IF NOT EXISTS — use separate try/catch
+    for (const tbl of ["salons", "staff"]) {
+      await conn.execute(`ALTER TABLE ${tbl} ADD COLUMN whatsapp_phone VARCHAR(30)`).catch(e => {
+        if (e.code !== "ER_DUP_FIELDNAME") throw e; // ignore "column already exists"
+      });
+    }
 
     // salons is the root table — must come first
     await conn.execute(`
