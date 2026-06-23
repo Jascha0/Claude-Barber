@@ -168,6 +168,27 @@ router.patch("/staff/:id", auth, async (req, res) => {
   res.json(updated);
 });
 
+// GET /api/admin/debug-token-exchange — temporary diagnostic endpoint
+router.get("/debug-token-exchange", auth, async (req, res) => {
+  const appId = process.env.META_APP_ID;
+  const appSecret = process.env.META_APP_SECRET;
+  if (!appId || !appSecret) return res.json({ error: "META_APP_ID or META_APP_SECRET not set in env" });
+
+  const [[row]] = await pool.execute(
+    "SELECT value FROM settings WHERE salon_id=? AND `key`='meta_waba_token'",
+    [req.salon.id]
+  );
+  if (!row?.value) return res.json({ error: "No token in DB" });
+
+  const url = `https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${row.value}`;
+  const metaRes = await fetch(url);
+  const data = await metaRes.json();
+
+  if (data.error) return res.json({ metaError: data.error });
+  if (data.access_token) return res.json({ success: true, tokenLength: data.access_token.length, expiresIn: data.expires_in });
+  return res.json({ unexpected: data });
+});
+
 // GET /api/admin/whatsapp-settings
 router.get("/whatsapp-settings", auth, async (req, res) => {
   const keys = ["whatsapp_enabled", "meta_phone_number_id", "meta_waba_token", "meta_webhook_verify_token"];
