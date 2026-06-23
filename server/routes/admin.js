@@ -2,6 +2,7 @@ const router  = require("express").Router();
 const bcrypt  = require("bcryptjs");
 const { pool } = require("../db");
 const { rules, rejectIfInvalid } = require("../middleware/validate");
+const { refreshWabaToken } = require("../messaging");
 
 async function auth(req, res, next) {
   const token   = req.headers["x-admin-token"];
@@ -186,6 +187,12 @@ router.patch("/whatsapp-settings", auth, async (req, res) => {
     "INSERT INTO settings (salon_id, `key`, value) VALUES (?,?,?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
     [req.salon.id, key, value]
   );
+  // When a new token is saved, immediately exchange it for a 60-day token
+  if (key === "meta_waba_token") {
+    refreshWabaToken(req.salon.id).catch(e =>
+      console.error("[whatsapp] token exchange on save failed:", e.message)
+    );
+  }
   res.json({ ok: true });
 });
 

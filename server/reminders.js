@@ -1,6 +1,6 @@
 const cron = require("node-cron");
 const { pool } = require("./db");
-const { sendReminder } = require("./messaging");
+const { sendReminder, refreshExpiringTokens } = require("./messaging");
 
 // Runs every day at 18:00 — sends reminders for all salons' bookings tomorrow
 cron.schedule("0 18 * * *", async () => {
@@ -32,4 +32,9 @@ cron.schedule("0 18 * * *", async () => {
   }
 });
 
-console.log("[reminders] Scheduler started — daily at 18:00");
+// Runs daily at 03:00 — refreshes WhatsApp tokens expiring within 20 days
+cron.schedule("0 3 * * *", () => {
+  refreshExpiringTokens().catch(e => console.error("[whatsapp] token refresh cron error:", e.message));
+});
+
+console.log("[reminders] Scheduler started — daily at 18:00 (reminders) + 03:00 (token refresh)");

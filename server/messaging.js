@@ -14,12 +14,83 @@ const { pool } = require("./db");
 const META_API = "https://graph.facebook.com/v19.0";
 
 async function getSalonWhatsAppConfig(salonId) {
+  const keys = ["meta_phone_number_id", "meta_waba_token", "whatsapp_enabled", "meta_waba_token_expires"];
   const [rows] = await pool.execute(
-    "SELECT `key`, value FROM settings WHERE salon_id = ? AND `key` IN ('meta_phone_number_id','meta_waba_token','whatsapp_enabled')",
-    [salonId]
+    `SELECT \`key\`, value FROM settings WHERE salon_id = ? AND \`key\` IN (${keys.map(() => "?").join(",")})`,
+    [salonId, ...keys]
   );
   const cfg = Object.fromEntries(rows.map(r => [r.key, r.value]));
   return cfg;
+}
+
+async function saveSetting(salonId, key, value) {
+  await pool.execute(
+    "INSERT INTO settings (salon_id, `key`, value) VALUES (?,?,?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
+    [salonId, key, value]
+  );
+}
+
+/**
+ * Exchanges a short- or long-lived token for a fresh 60-day token.
+ * Requires META_APP_ID and META_APP_SECRET in env.
+ * Returns the new token string, or null on failure.
+ */
+async function exchangeForLongLivedToken(currentToken) {
+  const appId = process.env.META_APP_ID;
+  const appSecret = process.env.META_APP_SECRET;
+  if (!appId || !appSecret) return null;
+
+  const url = `https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${currentToken}`;
+  const res = await fetch(url);
+  const data = await res.json();
+
+  if (data.error || !data.access_token) {
+    console.error("[whatsapp] token exchange failed:", JSON.stringify(data.error || data));
+    return null;
+  }
+  return data.access_token;
+}
+
+/**
+ * Refreshes the WABA token for a salon. Exchanges the current token for a new
+ * 60-day token and updates the DB. Called on token save and by the daily cron.
+ */
+async function refreshWabaToken(salonId) {
+  const cfg = await getSalonWhatsAppConfig(salonId);
+  if (!cfg.meta_waba_token) return;
+
+  const newToken = await exchangeForLongLivedToken(cfg.meta_waba_token);
+  if (!newToken) return;
+
+  const expires = new Date();
+  expires.setDate(expires.getDate() + 60);
+
+  await saveSetting(salonId, "meta_waba_token", newToken);
+  await saveSetting(salonId, "meta_waba_token_expires", expires.toISOString().slice(0, 10));
+  console.log(`[whatsapp] salon ${salonId}: token refreshed, expires ${expires.toISOString().slice(0, 10)}`);
+}
+
+/**
+ * Checks all salons and refreshes any token expiring within 20 days.
+ * Called daily by the scheduler in reminders.js.
+ */
+async function refreshExpiringTokens() {
+  const threshold = new Date();
+  threshold.setDate(threshold.getDate() + 20);
+  const thresholdStr = threshold.toISOString().slice(0, 10);
+
+  const [rows] = await pool.execute(
+    `SELECT DISTINCT salon_id FROM settings
+     WHERE \`key\` = 'meta_waba_token_expires' AND value <= ? AND value IS NOT NULL`,
+    [thresholdStr]
+  );
+
+  for (const { salon_id } of rows) {
+    await refreshWabaToken(salon_id).catch(e =>
+      console.error(`[whatsapp] auto-refresh failed for salon ${salon_id}:`, e.message)
+    );
+  }
+  if (rows.length) console.log(`[whatsapp] auto-refreshed tokens for ${rows.length} salon(s)`);
 }
 
 async function sendWhatsApp({ to, message, salonId }) {
@@ -126,4 +197,6 @@ module.exports = {
   sendBookingAlertToStaff,
   sendReminder,
   sendBookingLinkReply,
+  refreshWabaToken,
+  refreshExpiringTokens,
 };
