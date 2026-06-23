@@ -37,4 +37,7 @@ cron.schedule("0 3 * * *", () => {
   refreshExpiringTokens().catch(e => console.error("[whatsapp] token refresh cron error:", e.message));
 });
 
+// On startup — refresh any token that has no expiry date yet
+refreshExpiringTokens().catch(e => console.error("[whatsapp] startup token refresh error:", e.message));
+
 console.log("[reminders] Scheduler started — daily at 18:00 (reminders) + 03:00 (token refresh)");

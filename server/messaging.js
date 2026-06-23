@@ -79,11 +79,22 @@ async function refreshExpiringTokens() {
   threshold.setDate(threshold.getDate() + 20);
   const thresholdStr = threshold.toISOString().slice(0, 10);
 
-  const [rows] = await pool.execute(
-    `SELECT DISTINCT salon_id FROM settings
-     WHERE \`key\` = 'meta_waba_token_expires' AND value <= ? AND value IS NOT NULL`,
-    [thresholdStr]
-  );
+  // Refresh salons that have a token but either no expiry date, or one within 20 days
+  const [rows] = await pool.execute(`
+    SELECT DISTINCT t.salon_id
+    FROM settings t
+    WHERE t.\`key\` = 'meta_waba_token'
+      AND (
+        NOT EXISTS (
+          SELECT 1 FROM settings e
+          WHERE e.salon_id = t.salon_id AND e.\`key\` = 'meta_waba_token_expires'
+        )
+        OR EXISTS (
+          SELECT 1 FROM settings e
+          WHERE e.salon_id = t.salon_id AND e.\`key\` = 'meta_waba_token_expires' AND e.value <= ?
+        )
+      )
+  `, [thresholdStr]);
 
   for (const { salon_id } of rows) {
     await refreshWabaToken(salon_id).catch(e =>
