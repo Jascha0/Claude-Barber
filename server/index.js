@@ -63,6 +63,16 @@ app.use(express.static(path.join(__dirname, "..", "ich-will-schauen-was-besser-i
 app.use("/admin",      express.static(path.join(__dirname, "..", "admin")));
 app.use("/superadmin", express.static(path.join(__dirname, "..", "superadmin")));
 
+// ── Root-domain redirect (barberbook.de with no subdomain → superadmin) ──────
+app.get("/", (req, res, next) => {
+  const parts = req.hostname.split(".");
+  // Root domain has ≤2 parts (e.g. barberbook.de); subdomains have ≥3
+  if (parts.length <= 2 && req.hostname !== "localhost") {
+    return res.redirect("/superadmin");
+  }
+  next();
+});
+
 // ── Super admin API (no tenant context needed) ────────────────────────────────
 app.use("/api/superadmin", require("./routes/superadmin"));
 
