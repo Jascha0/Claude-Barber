@@ -29,7 +29,7 @@
     <main id="home">
       <section class="hero" aria-labelledby="hero-title">
         <div class="hero-media" aria-hidden="true">
-          <img id="heroImg" src="" alt="" />
+          <img id="heroImg" alt="" />
         </div>
         <div class="hero-content">
           <p class="eyebrow" data-salon="address"></p>
@@ -86,30 +86,53 @@
           </ul>
         </div>
 
-        <form class="booking-panel" id="bookingForm">
-          <label>Gewünschte Leistung
-            <select id="serviceSelect" name="serviceId" required></select>
-          </label>
-          <label>Gewünschter Friseur
-            <select id="staffSelect" name="staffId"></select>
-          </label>
-          <div class="date-row" id="dateRow" role="group" aria-label="Datum wählen"></div>
-          <div class="slot-grid" id="slotGrid" role="group" aria-label="Uhrzeit wählen"></div>
-          <div class="input-grid">
-            <label>Name
-              <input id="nameInput" name="name" placeholder="Dein Name" required />
-            </label>
-            <label>Telefon
-              <input id="phoneInput" name="phone" placeholder="+49 ..." required />
-            </label>
+        <div class="booking-right">
+          <div id="bookingPanel">
+            <form class="booking-panel" id="bookingForm">
+              <label>Gewünschte Leistung
+                <select id="serviceSelect" name="serviceId" required></select>
+              </label>
+              <label>Gewünschter Friseur
+                <select id="staffSelect" name="staffId"></select>
+              </label>
+              <div class="date-row" id="dateRow" role="group" aria-label="Datum wählen"></div>
+              <div class="slot-grid" id="slotGrid" role="group" aria-label="Uhrzeit wählen"></div>
+              <div class="input-grid">
+                <label>Name
+                  <input id="nameInput" name="name" placeholder="Dein Name" required />
+                </label>
+                <label>Telefon
+                  <input id="phoneInput" name="phone" placeholder="+49 ..." required />
+                </label>
+              </div>
+              <div class="summary" id="bookingSummary">Wähle Service und freien Termin.</div>
+              <button class="submit-btn" type="submit">
+                <i data-lucide="calendar-check" aria-hidden="true"></i>
+                Termin buchen
+              </button>
+              <p class="microcopy">Die freien Zeiten passen zur gewählten Leistung, Dauer und zum ausgewählten Mitarbeiter.</p>
+            </form>
           </div>
-          <div class="summary" id="bookingSummary">Wähle Service und freien Termin.</div>
-          <button class="submit-btn" type="submit">
-            <i data-lucide="calendar-check" aria-hidden="true"></i>
-            Termin buchen
-          </button>
-          <p class="microcopy">Die freien Zeiten passen zur gewählten Leistung, Dauer und zum ausgewählten Mitarbeiter.</p>
-        </form>
+
+          <div id="bookingSuccess" class="booking-success" style="display:none" aria-live="polite">
+            <div class="success-check"><i data-lucide="check" aria-hidden="true"></i></div>
+            <h3>Termin bestätigt!</h3>
+            <p class="success-sub">Wir freuen uns auf deinen Besuch, <strong id="successName"></strong>.</p>
+            <dl class="success-details">
+              <div><dt><i data-lucide="scissors" aria-hidden="true"></i>Leistung</dt><dd id="successService"></dd></div>
+              <div><dt><i data-lucide="calendar" aria-hidden="true"></i>Datum</dt><dd id="successDate"></dd></div>
+              <div><dt><i data-lucide="clock" aria-hidden="true"></i>Uhrzeit</dt><dd id="successTime"></dd></div>
+              <div><dt><i data-lucide="user" aria-hidden="true"></i>Mitarbeiter</dt><dd id="successStaff"></dd></div>
+              <div><dt><i data-lucide="banknote" aria-hidden="true"></i>Preis</dt><dd id="successPrice"></dd></div>
+              <div><dt><i data-lucide="smartphone" aria-hidden="true"></i>WhatsApp</dt><dd id="successPhone"></dd></div>
+            </dl>
+            <p class="success-note">Du erhältst eine Bestätigung per WhatsApp. Bitte erscheine pünktlich.</p>
+            <button class="submit-btn" onclick="resetBooking()" style="margin-top:0.5rem">
+              <i data-lucide="plus" aria-hidden="true"></i>
+              Neuen Termin buchen
+            </button>
+          </div>
+        </div>
       </section>
 
       <section id="location" class="section location-section">
@@ -132,5 +155,16 @@
     </main>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <footer class="site-footer">
+      <div class="site-footer__inner">
+        <span class="brand-mark" style="font-size:0.65rem;width:28px;height:28px;display:grid;place-items:center;background:var(--accent);color:#000;font-weight:800;border-radius:6px;" data-salon="initials">NL</span>
+        <span data-salon="name" style="font-size:0.85rem;font-weight:600;color:var(--muted)">Salon</span>
+        <nav class="footer-links" aria-label="Rechtliches">
+          <a href="/impressum">Impressum</a>
+          <a href="/datenschutz">Datenschutz</a>
+        </nav>
+      </div>
+    </footer>
   </body>
 </html>

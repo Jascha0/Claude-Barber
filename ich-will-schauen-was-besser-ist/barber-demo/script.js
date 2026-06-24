@@ -164,7 +164,7 @@ function buildDateRow() {
     d.setDate(today.getDate() + i);
     const dow    = d.getDay();
     const closed = HOURS[dow] === null || HOURS[dow] === undefined;
-    const iso    = d.toISOString().slice(0, 10);
+    const iso    = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     const label  = i === 0 ? "Heute" : i === 1 ? "Morgen" : DAY_NAMES[dow];
     html += `
       <button type="button" class="date-btn${closed ? " taken" : ""}" data-date="${iso}"
@@ -244,6 +244,9 @@ async function handleSubmit(e) {
   btn.disabled = true;
   btn.textContent = "Wird gebucht…";
 
+  const customerName  = document.getElementById("nameInput").value.trim();
+  const customerPhone = document.getElementById("phoneInput").value.trim();
+
   try {
     const res = await fetch("/api/bookings", {
       method: "POST",
@@ -253,29 +256,61 @@ async function handleSubmit(e) {
         staffId:       state.staffId,
         date:          state.date,
         timeSlot:      state.slot,
-        customerName:  document.getElementById("nameInput").value.trim(),
-        customerPhone: document.getElementById("phoneInput").value.trim(),
+        customerName,
+        customerPhone,
       }),
     });
     if (res.status === 409) {
       const data = await res.json().catch(() => ({}));
       showToast(data.error || "Diese Zeit wurde gerade gebucht. Bitte wähle eine andere.");
       buildSlotGrid();
+      btn.disabled = false;
+      btn.innerHTML = `<i data-lucide="calendar-check" aria-hidden="true"></i> Termin buchen`;
+      lucide.createIcons();
       return;
     }
     if (!res.ok) throw new Error();
-    showToast(`Termin bestätigt für ${document.getElementById("nameInput").value.trim()} um ${state.slot} Uhr!`);
+    const data = await res.json();
+    showSuccess({ data, customerName, customerPhone });
     e.target.reset();
     state.slot = null;
-    buildSlotGrid();
-    updateSummary();
   } catch {
     showToast("Fehler beim Buchen. Bitte versuche es erneut.");
-  } finally {
     btn.disabled = false;
     btn.innerHTML = `<i data-lucide="calendar-check" aria-hidden="true"></i> Termin buchen`;
     lucide.createIcons();
   }
+}
+
+function showSuccess({ data, customerName, customerPhone }) {
+  const d       = new Date(state.date + "T12:00:00");
+  const service = SERVICES.find(s => s.id === state.serviceId);
+  const staff   = STAFF.find(s => s.id === (data.staff?.id ?? state.staffId));
+  const dateStr = `${DAY_NAMES_FULL[d.getDay()]}, ${d.getDate()}. ${d.toLocaleString("de-DE",{month:"long"})}`;
+
+  const panel = document.getElementById("bookingPanel");
+  const success = document.getElementById("bookingSuccess");
+
+  document.getElementById("successName").textContent   = customerName;
+  document.getElementById("successService").textContent = service?.name ?? "";
+  document.getElementById("successDate").textContent    = dateStr;
+  document.getElementById("successTime").textContent    = state.slot + " Uhr";
+  document.getElementById("successStaff").textContent   = staff?.id === 0 ? "Erster freier Mitarbeiter" : (staff?.name ?? data.staff?.name ?? "");
+  document.getElementById("successPrice").textContent   = (service?.price ?? data.service?.price ?? "") + " €";
+  document.getElementById("successPhone").textContent   = customerPhone;
+
+  panel.style.display   = "none";
+  success.style.display = "flex";
+  lucide.createIcons();
+  success.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function resetBooking() {
+  document.getElementById("bookingSuccess").style.display = "none";
+  document.getElementById("bookingPanel").style.display   = "flex";
+  state.slot = null;
+  updateSummary();
+  buildSlotGrid();
 }
 
 // ── TOAST ─────────────────────────────────────────────────────────────────────

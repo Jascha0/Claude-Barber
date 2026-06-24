@@ -4,9 +4,9 @@ const { sendReminder, refreshExpiringTokens } = require("./messaging");
 
 // Runs every day at 18:00 — sends reminders for all salons' bookings tomorrow
 cron.schedule("0 18 * * *", async () => {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const dateStr = tomorrow.toISOString().slice(0, 10);
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const dateStr = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" }).format(tomorrowDate);
 
   const [bookings] = await pool.execute(`
     SELECT b.*, s.name as service_name, s.duration, s.price

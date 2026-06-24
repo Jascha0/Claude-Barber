@@ -50,7 +50,7 @@ router.get("/bookings", auth, async (req, res) => {
 
 // GET /api/admin/bookings/today
 router.get("/bookings/today", auth, async (req, res) => {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" }).format(new Date());
   const [rows] = await pool.execute(`
     SELECT b.*, s.name as service_name, s.price, s.duration, st.name as staff_name
     FROM bookings b
