@@ -33,8 +33,25 @@ function showDashboard() {
   document.getElementById("loginScreen").classList.add("hidden");
   document.getElementById("dashboard").classList.remove("hidden");
   lucide.createIcons();
+  applyAdminBranding();
   switchView("today");
   setTodayDate();
+}
+
+async function applyAdminBranding() {
+  try {
+    const s = await fetch("/api/salon").then(r => r.json());
+    if (s.primaryColor) {
+      document.documentElement.style.setProperty("--accent", s.primaryColor);
+    }
+    if (s.logoInitials) {
+      document.querySelectorAll(".brand-mark").forEach(el => el.textContent = s.logoInitials);
+    }
+    if (s.name) {
+      document.querySelector(".sidebar-brand span:last-child").textContent = s.name.split(" ")[0];
+      document.title = `Admin – ${s.name}`;
+    }
+  } catch { /* keep defaults */ }
 }
 
 function logout() {
