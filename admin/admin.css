@@ -514,6 +514,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
     overflow: hidden;
   }
   .sidebar-brand { display: none; }
+  /* Make nav transparent to flex layout so its children join the sidebar row directly */
+  .sidebar nav { display: contents; }
   .logout-btn {
     flex-direction: column;
     gap: 2px;
