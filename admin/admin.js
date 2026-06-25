@@ -1,6 +1,10 @@
 const API = "/api/admin";
 let TOKEN = localStorage.getItem("admin_token") || "";
 
+function esc(v) {
+  return String(v ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
 // ── BOOT ──
 document.addEventListener("DOMContentLoaded", () => {
   lucide.createIcons();
@@ -101,10 +105,10 @@ async function loadToday() {
       `<div class="view-header" style="margin-top:1.5rem"><h3 style="font-size:1rem;font-weight:700;color:var(--muted)">Gesperrte Zeiten heute</h3></div>` +
       blocked.map(s => `
         <div class="booking-card blocked-slot-card">
-          <div class="time">${s.time_slot}</div>
+          <div class="time">${esc(s.time_slot)}</div>
           <div class="info">
             <div class="customer">🔒 Gesperrt</div>
-            <div class="details">${s.staff_name || "Alle Mitarbeiter"}${s.reason ? " · " + s.reason : ""}</div>
+            <div class="details">${esc(s.staff_name) || "Alle Mitarbeiter"}${s.reason ? " · " + esc(s.reason) : ""}</div>
           </div>
           <div class="actions">
             <button class="action-btn danger" onclick="deleteBlockedSlot(${s.staff_id}, '${s.date}', '${s.time_slot}')">Entsperren</button>
@@ -163,14 +167,14 @@ function renderBookings(containerId, bookings) {
   }
   el.innerHTML = bookings.map(b => `
     <div class="booking-card" id="booking-${b.id}">
-      <div class="time">${b.time_slot}</div>
+      <div class="time">${esc(b.time_slot)}</div>
       <div class="info">
-        <div class="customer">${b.customer_name}</div>
+        <div class="customer">${esc(b.customer_name)}</div>
         <div class="details">
-          ${b.service_name} · ${b.duration} Min. · ${b.price} € · ${b.staff_name}
-          ${containerId !== "todayList" ? `· ${b.date}` : ""}
+          ${esc(b.service_name)} · ${b.duration} Min. · ${b.price} € · ${esc(b.staff_name)}
+          ${containerId !== "todayList" ? `· ${esc(b.date)}` : ""}
         </div>
-        <div class="details">${b.customer_phone} · <span class="badge badge-${b.status}">${statusLabel(b.status)}</span></div>
+        <div class="details">${esc(b.customer_phone)} · <span class="badge badge-${esc(b.status)}">${statusLabel(b.status)}</span></div>
       </div>
       <div class="actions">
         ${b.status === "confirmed" ? `
@@ -495,10 +499,10 @@ function renderBlockedSlots(slots) {
   }
   el.innerHTML = slots.map(s => `
     <div class="booking-card blocked-slot-card">
-      <div class="time">${s.time_slot}</div>
+      <div class="time">${esc(s.time_slot)}</div>
       <div class="info">
         <div class="customer">🔒 Gesperrt</div>
-        <div class="details">${s.date} · ${s.staff_name || "Alle Mitarbeiter"}${s.reason ? " · " + s.reason : ""}</div>
+        <div class="details">${esc(s.date)} · ${esc(s.staff_name) || "Alle Mitarbeiter"}${s.reason ? " · " + esc(s.reason) : ""}</div>
       </div>
       <div class="actions">
         <button class="action-btn danger" onclick="deleteBlockedSlot(${s.staff_id}, '${s.date}', '${s.time_slot}')">Entsperren</button>

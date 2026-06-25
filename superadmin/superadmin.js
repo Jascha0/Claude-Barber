@@ -1,6 +1,10 @@
 const API = "/api/superadmin";
 let TOKEN = localStorage.getItem("super_token") || "";
 
+function esc(v) {
+  return String(v ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   if (TOKEN) showDashboard();
 
@@ -85,14 +89,14 @@ function renderSalons(salons) {
   }
   el.innerHTML = salons.map(s => `
     <div class="salon-card ${s.active ? "" : "inactive"}" id="salon-${s.id}">
-      <div class="salon-initials" style="background:${s.primary_color}">${s.logo_initials}</div>
+      <div class="salon-initials" style="background:${esc(s.primary_color)}">${esc(s.logo_initials)}</div>
       <div class="salon-info">
-        <div class="name">${s.name}</div>
-        <div class="slug">${s.slug}</div>
+        <div class="name">${esc(s.name)}</div>
+        <div class="slug">${esc(s.slug)}</div>
         <div class="meta">
-          ${s.city || ""}${s.address ? " · " + s.address : ""}
+          ${esc(s.city) || ""}${s.address ? " · " + esc(s.address) : ""}
           · ${s.booking_count} booking${s.booking_count !== 1 ? "s" : ""}
-          ${s.domain ? " · <em>" + s.domain + "</em>" : ""}
+          ${s.domain ? " · <em>" + esc(s.domain) + "</em>" : ""}
         </div>
       </div>
       <div class="salon-actions">
@@ -211,12 +215,12 @@ async function loadLeads() {
   el.innerHTML = leads.map(l => `
     <div class="salon-card ${l.contacted ? "inactive" : ""}">
       <div class="salon-initials" style="background:${l.contacted ? "#444" : "var(--accent)"}; color:${l.contacted ? "#888" : "#000"}">
-        ${l.owner_name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase()}
+        ${esc(l.owner_name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase())}
       </div>
       <div class="salon-info">
-        <div class="name">${l.salon_name}</div>
-        <div class="slug">${l.owner_name}</div>
-        <div class="meta">${l.phone}${l.city ? " · " + l.city : ""} · ${new Date(l.created_at).toLocaleDateString("de-DE")}</div>
+        <div class="name">${esc(l.salon_name)}</div>
+        <div class="slug">${esc(l.owner_name)}</div>
+        <div class="meta">${esc(l.phone)}${l.city ? " · " + esc(l.city) : ""} · ${new Date(l.created_at).toLocaleDateString("de-DE")}</div>
       </div>
       <div class="salon-actions">
         <a class="btn-primary" href="https://wa.me/${l.phone.replace(/\D/g,'')}" target="_blank" rel="noopener">WhatsApp</a>

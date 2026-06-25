@@ -1,6 +1,10 @@
 const DAY_NAMES      = ["So","Mo","Di","Mi","Do","Fr","Sa"];
 const DAY_NAMES_FULL = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
 
+function esc(v) {
+  return String(v ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
 let SALON    = null;
 let HOURS    = {};
 let SERVICES = [];
@@ -119,7 +123,7 @@ function buildServiceGrid() {
   if (!grid) return;
   grid.innerHTML = SERVICES.map(s => `
     <div class="service-card" onclick="selectServiceFromCard(${s.id})">
-      <div class="service-card__name">${s.name}</div>
+      <div class="service-card__name">${esc(s.name)}</div>
       <div class="service-card__meta">
         <span class="service-card__price">${s.price} €</span>
         <span class="service-card__duration"><i data-lucide="clock"></i>${s.duration} Min.</span>
@@ -142,14 +146,14 @@ function selectServiceFromCard(id) {
 function buildServiceSelect() {
   const sel = document.getElementById("serviceSelect");
   sel.innerHTML = SERVICES.map(s =>
-    `<option value="${s.id}">${s.name} – ${s.price} €</option>`
+    `<option value="${s.id}">${esc(s.name)} – ${s.price} €</option>`
   ).join("");
   if (SERVICES.length) state.serviceId = SERVICES[0].id;
 }
 
 function buildStaffSelect() {
   document.getElementById("staffSelect").innerHTML = STAFF.map(s =>
-    `<option value="${s.id}">${s.name}</option>`
+    `<option value="${s.id}">${esc(s.name)}</option>`
   ).join("");
 }
 
