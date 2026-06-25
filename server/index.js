@@ -55,8 +55,17 @@ const bookingLimiter = rateLimit({
   message: { error: "Too many booking requests. Try again later." },
 });
 
-app.use("/api/admin/login",  loginLimiter);
-app.use("/api/bookings",     bookingLimiter);
+const leadsLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests. Try again later." },
+});
+
+app.use("/api/admin/login",     loginLimiter);
+app.use("/api/bookings",        bookingLimiter);
+app.use("/api/superadmin/leads", leadsLimiter);
 
 // ── Static files (tenant-agnostic templates) ──────────────────────────────────
 app.use(express.static(path.join(__dirname, "..", "ich-will-schauen-was-besser-ist", "barber-demo")));

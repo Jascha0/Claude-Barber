@@ -382,6 +382,7 @@ async function saveSalonInfo() {
     }),
   });
   showToast("Salon-Infos gespeichert.");
+  applyAdminBranding();
 }
 
 async function saveHours() {
