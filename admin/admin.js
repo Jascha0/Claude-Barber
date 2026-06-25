@@ -109,8 +109,12 @@ async function loadBookings() {
   const params = new URLSearchParams();
   if (date)   params.set("date", date);
   if (status) params.set("status", status);
-  const bookings = await fetch(`${API}/bookings?${params}`, { headers: authHeaders() }).then(r => r.json());
+  const [bookings, blocked] = await Promise.all([
+    fetch(`${API}/bookings?${params}`, { headers: authHeaders() }).then(r => r.json()),
+    fetch(`${API}/blocked-slots?${date ? "date=" + date : ""}`, { headers: authHeaders() }).then(r => r.json()),
+  ]);
   renderBookings("bookingsList", bookings);
+  renderBlockedSlots(blocked);
 }
 
 // ── RENDER BOOKING CARDS ──
@@ -406,6 +410,109 @@ async function saveStaffWhatsApp(staffId, phone) {
 function copyWebhookUrl() {
   navigator.clipboard.writeText(document.getElementById("waWebhookUrl").value);
   showToast("URL kopiert!");
+}
+
+// ── BLOCKED SLOTS ──
+let STAFF_CACHE = [];
+
+function renderBlockedSlots(slots) {
+  const el = document.getElementById("blockedList");
+  if (!el) return;
+  if (!slots.length) {
+    el.innerHTML = `<div class="empty-msg">Keine gesperrten Zeiten.</div>`;
+    return;
+  }
+  el.innerHTML = slots.map(s => `
+    <div class="booking-card blocked-slot-card">
+      <div class="time">${s.time_slot}</div>
+      <div class="info">
+        <div class="customer">🔒 Gesperrt</div>
+        <div class="details">${s.date} · ${s.staff_name || "Alle Mitarbeiter"}${s.reason ? " · " + s.reason : ""}</div>
+      </div>
+      <div class="actions">
+        <button class="action-btn danger" onclick="deleteBlockedSlot(${s.staff_id}, '${s.date}', '${s.time_slot}')">Entsperren</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+async function openBlockModal() {
+  const modal = document.getElementById("blockModal");
+  modal.classList.remove("hidden");
+
+  // Load staff if not cached
+  if (!STAFF_CACHE.length) {
+    STAFF_CACHE = await fetch(`${API}/staff`, { headers: authHeaders() }).then(r => r.json());
+  }
+  const sel = document.getElementById("blockStaff");
+  sel.innerHTML = `<option value="0">Alle Mitarbeiter</option>` +
+    STAFF_CACHE.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+
+  // Set date default to today (local timezone)
+  const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" }).format(new Date());
+  document.getElementById("blockDate").value = today;
+  document.getElementById("blockReason").value = "";
+  await loadBlockSlots();
+
+  document.getElementById("blockDate").onchange = loadBlockSlots;
+}
+
+async function loadBlockSlots() {
+  const date      = document.getElementById("blockDate").value;
+  const staffId   = document.getElementById("blockStaff").value;
+  const slotSel   = document.getElementById("blockSlot");
+  if (!date) return;
+  slotSel.innerHTML = `<option>Lade Zeiten…</option>`;
+  try {
+    // Use first active service's duration to generate slot list
+    const services  = await fetch(`${API}/services`, { headers: authHeaders() }).then(r => r.json());
+    const firstSvc  = services.find(s => s.active) || services[0];
+    const svcId     = firstSvc?.id ?? 1;
+    const slots     = await fetch(`/api/slots?date=${date}&serviceId=${svcId}&staffId=${staffId}`, { headers: authHeaders() }).then(r => r.json());
+    slotSel.innerHTML = slots.length
+      ? slots.map(s => `<option value="${s.time}">${s.time}${!s.available ? " (belegt)" : ""}</option>`).join("")
+      : `<option>Keine Zeiten verfügbar</option>`;
+  } catch {
+    slotSel.innerHTML = `<option>Fehler beim Laden</option>`;
+  }
+}
+
+function closeBlockModal() {
+  document.getElementById("blockModal").classList.add("hidden");
+}
+
+async function saveBlockedSlot() {
+  const staffId  = Number(document.getElementById("blockStaff").value);
+  const date     = document.getElementById("blockDate").value;
+  const timeSlot = document.getElementById("blockSlot").value;
+  const reason   = document.getElementById("blockReason").value.trim();
+
+  if (!date || !timeSlot) { showToast("Datum und Uhrzeit wählen."); return; }
+
+  const res = await fetch(`${API}/blocked-slots`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ staffId, date, timeSlot, reason: reason || null }),
+  });
+  if (res.ok) {
+    closeBlockModal();
+    showToast("Zeit gesperrt.");
+    loadBookings();
+  } else {
+    showToast("Fehler beim Sperren.");
+  }
+}
+
+async function deleteBlockedSlot(staffId, date, timeSlot) {
+  const res = await fetch(`${API}/blocked-slots`, {
+    method: "DELETE",
+    headers: authHeaders(),
+    body: JSON.stringify({ staffId, date, timeSlot }),
+  });
+  if (res.ok) {
+    showToast("Zeit entsperrt.");
+    loadBookings();
+  }
 }
 
 // ── TOAST ──

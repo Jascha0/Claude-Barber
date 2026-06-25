@@ -85,6 +85,22 @@ router.delete("/bookings/:id", auth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// GET /api/admin/blocked-slots?date=YYYY-MM-DD
+router.get("/blocked-slots", auth, async (req, res) => {
+  const { date } = req.query;
+  let sql = `
+    SELECT bs.*, st.name as staff_name
+    FROM blocked_slots bs
+    LEFT JOIN staff st ON bs.staff_id = st.id
+    WHERE bs.salon_id = ?
+  `;
+  const params = [req.salon.id];
+  if (date) { sql += " AND bs.date = ?"; params.push(date); }
+  sql += " ORDER BY bs.date, bs.time_slot";
+  const [rows] = await pool.execute(sql, params);
+  res.json(rows);
+});
+
 // POST /api/admin/blocked-slots
 router.post("/blocked-slots", auth, async (req, res) => {
   const { staffId, date, timeSlot, reason } = req.body;
