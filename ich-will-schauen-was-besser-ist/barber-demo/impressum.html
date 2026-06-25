@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Impressum</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .legal-page { max-width: 720px; margin: 0 auto; padding: 3rem 2rem 5rem; }
+    .legal-page h1 { font-size: 2rem; font-weight: 800; margin-bottom: 2rem; }
+    .legal-page h2 { font-size: 1.1rem; font-weight: 700; margin: 2rem 0 0.5rem; color: var(--accent); }
+    .legal-page p, .legal-page address { font-size: 0.95rem; color: var(--muted); line-height: 1.7; font-style: normal; }
+    .legal-page a { color: var(--accent); }
+    .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); text-decoration: none; font-size: 0.9rem; margin-bottom: 2rem; }
+    .back-link:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+  <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:0 2rem;height:64px;display:flex;align-items:center;">
+    <a class="brand" href="/" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text);font-weight:700;">
+      <span class="brand-mark" data-salon="initials">NL</span>
+      <span data-salon="name">Salon</span>
+    </a>
+  </div>
+
+  <div class="legal-page">
+    <a class="back-link" href="/">&#8592; Zurück zur Startseite</a>
+    <h1>Impressum</h1>
+
+    <h2>Angaben gemäß § 5 TMG</h2>
+    <address>
+      Next Level Salon<br />
+      Musterstraße 1<br />
+      00000 Musterstadt<br />
+      Deutschland
+    </address>
+
+    <h2>Kontakt</h2>
+    <p>
+      Telefon: +49 (0) 000 000000<br />
+      E-Mail: info@beispiel.de
+    </p>
+
+    <h2>Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV</h2>
+    <address>
+      Vorname Nachname<br />
+      Musterstraße 1<br />
+      00000 Musterstadt
+    </address>
+
+    <h2>Haftungsausschluss</h2>
+    <p>
+      Trotz sorgfältiger inhaltlicher Kontrolle übernehmen wir keine Haftung für die
+      Inhalte externer Links. Für den Inhalt der verlinkten Seiten sind ausschließlich
+      deren Betreiber verantwortlich.
+    </p>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      fetch("/api/salon").then(r => r.json()).then(s => {
+        document.querySelectorAll("[data-salon='name']").forEach(el => el.textContent = s.name);
+        document.querySelectorAll("[data-salon='initials']").forEach(el => el.textContent = s.logoInitials);
+        document.title = s.name + " – Impressum";
+      }).catch(() => {});
+    });
+  </script>
+</body>
+</html>

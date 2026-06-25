@@ -113,10 +113,14 @@ router.delete("/blocked-slots", auth, async (req, res) => {
 // GET /api/admin/stats
 router.get("/stats", auth, async (req, res) => {
   const sid = req.salon.id;
-  const today = new Date().toISOString().slice(0, 10);
-  const weekStart = new Date();
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
-  const ws = weekStart.toISOString().slice(0, 10);
+  const fmt = d => new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" }).format(d);
+  const today = fmt(new Date());
+  const todayMidnight = new Date(today + "T00:00:00");
+  const dow = todayMidnight.getDay();
+  const daysFromMon = dow === 0 ? 6 : dow - 1;
+  const weekStartDate = new Date(todayMidnight);
+  weekStartDate.setDate(weekStartDate.getDate() - daysFromMon);
+  const ws = weekStartDate.toISOString().slice(0, 10);
 
   const [
     [[{ n: todayCount }]],
@@ -160,10 +164,18 @@ router.get("/staff", auth, async (req, res) => {
 router.patch("/staff/:id", auth, async (req, res) => {
   const { name, active, whatsapp_phone } = req.body;
   const id = Number(req.params.id);
-  await pool.execute(
-    "UPDATE staff SET name=COALESCE(?,name), active=COALESCE(?,active), whatsapp_phone=COALESCE(?,whatsapp_phone) WHERE id=? AND salon_id=?",
-    [name ?? null, active ?? null, whatsapp_phone !== undefined ? (whatsapp_phone || null) : null, id, req.salon.id]
-  );
+  if (whatsapp_phone !== undefined) {
+    // Handle phone update separately so empty string can clear the field
+    await pool.execute(
+      "UPDATE staff SET name=COALESCE(?,name), active=COALESCE(?,active), whatsapp_phone=? WHERE id=? AND salon_id=?",
+      [name ?? null, active ?? null, whatsapp_phone.trim() || null, id, req.salon.id]
+    );
+  } else {
+    await pool.execute(
+      "UPDATE staff SET name=COALESCE(?,name), active=COALESCE(?,active) WHERE id=? AND salon_id=?",
+      [name ?? null, active ?? null, id, req.salon.id]
+    );
+  }
   const [[updated]] = await pool.execute("SELECT * FROM staff WHERE id=?", [id]);
   res.json(updated);
 });
