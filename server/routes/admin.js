@@ -105,11 +105,26 @@ router.get("/blocked-slots", auth, async (req, res) => {
 router.post("/blocked-slots", auth, async (req, res) => {
   const { staffId, date, timeSlot, reason } = req.body;
   try {
-    await pool.execute(
-      `INSERT INTO blocked_slots (salon_id, staff_id, date, time_slot, reason) VALUES (?,?,?,?,?)
-       ON DUPLICATE KEY UPDATE reason = VALUES(reason)`,
-      [req.salon.id, Number(staffId), date, timeSlot, reason || null]
-    );
+    if (Number(staffId) === 0) {
+      // "All staff" — insert one row per active staff member so slot checker picks it up
+      const [staffRows] = await pool.execute(
+        "SELECT id FROM staff WHERE salon_id = ? AND active = 1",
+        [req.salon.id]
+      );
+      for (const { id } of staffRows) {
+        await pool.execute(
+          `INSERT INTO blocked_slots (salon_id, staff_id, date, time_slot, reason) VALUES (?,?,?,?,?)
+           ON DUPLICATE KEY UPDATE reason = VALUES(reason)`,
+          [req.salon.id, id, date, timeSlot, reason || null]
+        );
+      }
+    } else {
+      await pool.execute(
+        `INSERT INTO blocked_slots (salon_id, staff_id, date, time_slot, reason) VALUES (?,?,?,?,?)
+         ON DUPLICATE KEY UPDATE reason = VALUES(reason)`,
+        [req.salon.id, Number(staffId), date, timeSlot, reason || null]
+      );
+    }
     res.status(201).json({ ok: true });
   } catch (e) {
     res.status(400).json({ error: e.message });
@@ -119,10 +134,18 @@ router.post("/blocked-slots", auth, async (req, res) => {
 // DELETE /api/admin/blocked-slots
 router.delete("/blocked-slots", auth, async (req, res) => {
   const { staffId, date, timeSlot } = req.body;
-  await pool.execute(
-    "DELETE FROM blocked_slots WHERE salon_id = ? AND staff_id = ? AND date = ? AND time_slot = ?",
-    [req.salon.id, Number(staffId), date, timeSlot]
-  );
+  if (Number(staffId) === 0) {
+    // Delete all staff's blocks at this slot
+    await pool.execute(
+      "DELETE FROM blocked_slots WHERE salon_id = ? AND date = ? AND time_slot = ?",
+      [req.salon.id, date, timeSlot]
+    );
+  } else {
+    await pool.execute(
+      "DELETE FROM blocked_slots WHERE salon_id = ? AND staff_id = ? AND date = ? AND time_slot = ?",
+      [req.salon.id, Number(staffId), date, timeSlot]
+    );
+  }
   res.json({ ok: true });
 });
 
@@ -194,27 +217,6 @@ router.patch("/staff/:id", auth, async (req, res) => {
   }
   const [[updated]] = await pool.execute("SELECT * FROM staff WHERE id=?", [id]);
   res.json(updated);
-});
-
-// GET /api/admin/debug-token-exchange — temporary diagnostic endpoint
-router.get("/debug-token-exchange", auth, async (req, res) => {
-  const appId = process.env.META_APP_ID;
-  const appSecret = process.env.META_APP_SECRET;
-  if (!appId || !appSecret) return res.json({ error: "META_APP_ID or META_APP_SECRET not set in env" });
-
-  const [[row]] = await pool.execute(
-    "SELECT value FROM settings WHERE salon_id=? AND `key`='meta_waba_token'",
-    [req.salon.id]
-  );
-  if (!row?.value) return res.json({ error: "No token in DB" });
-
-  const url = `https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${row.value}`;
-  const metaRes = await fetch(url);
-  const data = await metaRes.json();
-
-  if (data.error) return res.json({ metaError: data.error });
-  if (data.access_token) return res.json({ success: true, tokenLength: data.access_token.length, expiresIn: data.expires_in });
-  return res.json({ unexpected: data });
 });
 
 // GET /api/admin/whatsapp-settings
