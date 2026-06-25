@@ -62,13 +62,14 @@ app.use("/api/bookings",     bookingLimiter);
 app.use(express.static(path.join(__dirname, "..", "ich-will-schauen-was-besser-ist", "barber-demo")));
 app.use("/admin",      express.static(path.join(__dirname, "..", "admin")));
 app.use("/superadmin", express.static(path.join(__dirname, "..", "superadmin")));
+app.use("/landing",    express.static(path.join(__dirname, "..", "landing")));
 
-// ── Root-domain redirect (barberbook.de with no subdomain → superadmin) ──────
+// ── Root-domain (barberbook.de with no subdomain → landing page) ─────────────
 app.get("/", (req, res, next) => {
   const parts = req.hostname.split(".");
   // Root domain has ≤2 parts (e.g. barberbook.de); subdomains have ≥3
   if (parts.length <= 2 && req.hostname !== "localhost") {
-    return res.redirect("/superadmin");
+    return res.sendFile(path.join(__dirname, "..", "landing", "index.html"));
   }
   next();
 });

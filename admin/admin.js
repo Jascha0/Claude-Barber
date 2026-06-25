@@ -475,7 +475,8 @@ async function openBlockModal() {
   document.getElementById("blockReason").value = "";
   await loadBlockSlots();
 
-  document.getElementById("blockDate").onchange = loadBlockSlots;
+  document.getElementById("blockDate").onchange   = loadBlockSlots;
+  document.getElementById("blockStaff").onchange  = loadBlockSlots;
 }
 
 async function loadBlockSlots() {
