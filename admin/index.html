@@ -164,6 +164,13 @@
             <label>Stadt<input id="cfgCity" placeholder="München" /></label>
             <label>Adresse<input id="cfgAddress" placeholder="Musterstraße 1, 80000 München" /></label>
             <label>Telefon<input id="cfgPhone" placeholder="+4989..." /></label>
+            <label>Logo-Kürzel <span style="font-size:0.7rem;color:var(--muted);font-weight:400;text-transform:none">(2-4 Buchstaben)</span><input id="cfgInitials" placeholder="NL" maxlength="4" /></label>
+            <label>Akzentfarbe
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="color" id="cfgColorPicker" style="width:42px;height:36px;padding:2px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);cursor:pointer" />
+                <input id="cfgColor" placeholder="#c9a84c" maxlength="7" style="flex:1" />
+              </div>
+            </label>
             <label>Hero-Bild URL<input id="cfgHeroImg" placeholder="https://..." /></label>
             <label>Google Maps URL<input id="cfgMapsUrl" placeholder="https://www.google.com/maps?q=..." /></label>
           </div>

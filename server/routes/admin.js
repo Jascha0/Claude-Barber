@@ -287,18 +287,21 @@ router.get("/salon", auth, async (req, res) => {
   res.json({
     name: s.name, address: s.address, phone: s.phone,
     city: s.city, hero_img_url: s.hero_img_url, maps_url: s.maps_url,
+    logo_initials: s.logo_initials, primary_color: s.primary_color,
   });
 });
 
 // PATCH /api/admin/salon — update salon public info
 router.patch("/salon", auth, rules.updateSalon, rejectIfInvalid, async (req, res) => {
-  const { name, address, phone, city, hero_img_url, maps_url } = req.body;
+  const { name, address, phone, city, hero_img_url, maps_url, logo_initials, primary_color } = req.body;
   await pool.execute(
     `UPDATE salons SET
       name=COALESCE(?,name), address=COALESCE(?,address), phone=COALESCE(?,phone),
-      city=COALESCE(?,city), hero_img_url=COALESCE(?,hero_img_url), maps_url=COALESCE(?,maps_url)
+      city=COALESCE(?,city), hero_img_url=COALESCE(?,hero_img_url), maps_url=COALESCE(?,maps_url),
+      logo_initials=COALESCE(?,logo_initials), primary_color=COALESCE(?,primary_color)
      WHERE id=?`,
-    [name||null, address||null, phone||null, city||null, hero_img_url||null, maps_url||null, req.salon.id]
+    [name||null, address||null, phone||null, city||null, hero_img_url||null, maps_url||null,
+     logo_initials||null, primary_color||null, req.salon.id]
   );
   res.json({ ok: true });
 });

@@ -70,12 +70,32 @@ function setTodayDate() {
 
 // ── TODAY ──
 async function loadToday() {
-  const [bookings, stats] = await Promise.all([
+  const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" }).format(new Date());
+  const [bookings, stats, blocked] = await Promise.all([
     fetch(`${API}/bookings/today`, { headers: authHeaders() }).then(r => r.json()),
     fetch(`${API}/stats`, { headers: authHeaders() }).then(r => r.json()),
+    fetch(`${API}/blocked-slots?date=${today}`, { headers: authHeaders() }).then(r => r.json()),
   ]);
   renderStats(stats);
   renderBookings("todayList", bookings);
+  if (blocked.length) {
+    const el = document.getElementById("todayList");
+    el.insertAdjacentHTML("beforeend",
+      `<div class="view-header" style="margin-top:1.5rem"><h3 style="font-size:1rem;font-weight:700;color:var(--muted)">Gesperrte Zeiten heute</h3></div>` +
+      blocked.map(s => `
+        <div class="booking-card blocked-slot-card">
+          <div class="time">${s.time_slot}</div>
+          <div class="info">
+            <div class="customer">🔒 Gesperrt</div>
+            <div class="details">${s.staff_name || "Alle Mitarbeiter"}${s.reason ? " · " + s.reason : ""}</div>
+          </div>
+          <div class="actions">
+            <button class="action-btn danger" onclick="deleteBlockedSlot(${s.staff_id}, '${s.date}', '${s.time_slot}')">Entsperren</button>
+          </div>
+        </div>
+      `).join("")
+    );
+  }
 }
 
 function renderStats(s) {
@@ -281,12 +301,21 @@ async function loadSettings() {
     fetch(`${API}/hours`, { headers: authHeaders() }).then(r => r.json()),
   ]);
 
-  document.getElementById("cfgName").value     = salon.name     || "";
-  document.getElementById("cfgCity").value     = salon.city     || "";
-  document.getElementById("cfgAddress").value  = salon.address  || "";
-  document.getElementById("cfgPhone").value    = salon.phone    || "";
-  document.getElementById("cfgHeroImg").value  = salon.hero_img_url || "";
-  document.getElementById("cfgMapsUrl").value  = salon.maps_url || "";
+  document.getElementById("cfgName").value     = salon.name           || "";
+  document.getElementById("cfgCity").value     = salon.city           || "";
+  document.getElementById("cfgAddress").value  = salon.address        || "";
+  document.getElementById("cfgPhone").value    = salon.phone          || "";
+  document.getElementById("cfgInitials").value = salon.logo_initials  || "";
+  document.getElementById("cfgHeroImg").value  = salon.hero_img_url   || "";
+  document.getElementById("cfgMapsUrl").value  = salon.maps_url       || "";
+  const color = salon.primary_color || "#c9a84c";
+  document.getElementById("cfgColor").value       = color;
+  document.getElementById("cfgColorPicker").value = color;
+  // Sync color picker ↔ hex input
+  document.getElementById("cfgColorPicker").oninput = e => { document.getElementById("cfgColor").value = e.target.value; };
+  document.getElementById("cfgColor").oninput = e => {
+    if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) document.getElementById("cfgColorPicker").value = e.target.value;
+  };
 
   document.getElementById("hoursList").innerHTML = DAY_LABELS.map((label, i) => {
     const h = hours[i];
@@ -321,15 +350,18 @@ function toggleDay(i, cb) {
 }
 
 async function saveSalonInfo() {
+  const color = document.getElementById("cfgColor").value.trim();
   await fetch(`${API}/salon`, {
     method: "PATCH", headers: authHeaders(),
     body: JSON.stringify({
-      name:         document.getElementById("cfgName").value.trim()    || null,
-      city:         document.getElementById("cfgCity").value.trim()    || null,
-      address:      document.getElementById("cfgAddress").value.trim() || null,
-      phone:        document.getElementById("cfgPhone").value.trim()   || null,
-      hero_img_url: document.getElementById("cfgHeroImg").value.trim() || null,
-      maps_url:     document.getElementById("cfgMapsUrl").value.trim() || null,
+      name:          document.getElementById("cfgName").value.trim()     || null,
+      city:          document.getElementById("cfgCity").value.trim()     || null,
+      address:       document.getElementById("cfgAddress").value.trim()  || null,
+      phone:         document.getElementById("cfgPhone").value.trim()    || null,
+      logo_initials: document.getElementById("cfgInitials").value.trim() || null,
+      primary_color: /^#[0-9a-fA-F]{6}$/.test(color) ? color : null,
+      hero_img_url:  document.getElementById("cfgHeroImg").value.trim()  || null,
+      maps_url:      document.getElementById("cfgMapsUrl").value.trim()  || null,
     }),
   });
   showToast("Salon-Infos gespeichert.");
