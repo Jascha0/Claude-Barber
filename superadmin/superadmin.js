@@ -53,6 +53,14 @@ function showDashboard() {
   document.getElementById("loginScreen").classList.add("hidden");
   document.getElementById("dashboard").classList.remove("hidden");
   loadSalons();
+  loadLeads();
+}
+
+function switchTab(tab) {
+  document.getElementById("tabSalonsView").classList.toggle("hidden", tab !== "salons");
+  document.getElementById("tabLeadsView").classList.toggle("hidden", tab !== "leads");
+  document.getElementById("tabSalons").style.color = tab === "salons" ? "var(--text)" : "";
+  document.getElementById("tabLeads").style.color  = tab === "leads"  ? "var(--text)" : "";
 }
 
 function logout() {
@@ -180,6 +188,53 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), 3000);
+}
+
+// ── LEADS ──
+async function loadLeads() {
+  const res = await fetch(`${API}/leads`, { headers: authHeaders() });
+  if (!res.ok) return;
+  const leads = await res.json();
+  const badge = document.getElementById("leadsCount");
+  const uncontacted = leads.filter(l => !l.contacted).length;
+  if (uncontacted > 0) {
+    badge.textContent = uncontacted;
+    badge.classList.remove("hidden");
+  } else {
+    badge.classList.add("hidden");
+  }
+  const el = document.getElementById("leadsList");
+  if (!leads.length) {
+    el.innerHTML = `<p style="color:var(--muted);text-align:center;padding:3rem">No leads yet. Share the landing page to get inquiries.</p>`;
+    return;
+  }
+  el.innerHTML = leads.map(l => `
+    <div class="salon-card ${l.contacted ? "inactive" : ""}">
+      <div class="salon-initials" style="background:${l.contacted ? "#444" : "var(--accent)"}; color:${l.contacted ? "#888" : "#000"}">
+        ${l.owner_name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase()}
+      </div>
+      <div class="salon-info">
+        <div class="name">${l.salon_name}</div>
+        <div class="slug">${l.owner_name}</div>
+        <div class="meta">${l.phone}${l.city ? " · " + l.city : ""} · ${new Date(l.created_at).toLocaleDateString("de-DE")}</div>
+      </div>
+      <div class="salon-actions">
+        <a class="btn-primary" href="https://wa.me/${l.phone.replace(/\D/g,'')}" target="_blank" rel="noopener">WhatsApp</a>
+        ${!l.contacted
+          ? `<button class="btn-ghost" onclick="markContacted(${l.id})">Kontaktiert</button>`
+          : `<span style="color:var(--muted);font-size:0.8rem">✓ Kontaktiert</span>`}
+      </div>
+    </div>
+  `).join("");
+}
+
+async function markContacted(id) {
+  await fetch(`${API}/leads/${id}`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify({ contacted: true }),
+  });
+  loadLeads();
 }
 
 // Close modal on backdrop click

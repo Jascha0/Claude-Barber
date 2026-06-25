@@ -26,12 +26,21 @@
   <div id="dashboard" class="hidden">
     <header class="topbar">
       <div class="topbar-brand">⚙ Salon Management</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+        <button class="btn-ghost" onclick="switchTab('salons')" id="tabSalons">Salons</button>
+        <button class="btn-ghost" onclick="switchTab('leads')" id="tabLeads">Leads <span id="leadsCount" class="lead-badge hidden">0</span></button>
+      </div>
       <button class="btn-primary" onclick="openModal()">+ New Salon</button>
       <button class="btn-ghost" onclick="logout()">Sign out</button>
     </header>
 
     <main class="content">
-      <div id="salonList" class="salon-list"></div>
+      <div id="tabSalonsView">
+        <div id="salonList" class="salon-list"></div>
+      </div>
+      <div id="tabLeadsView" class="hidden">
+        <div id="leadsList" class="salon-list"></div>
+      </div>
     </main>
   </div>
 

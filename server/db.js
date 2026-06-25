@@ -107,6 +107,18 @@ async function initDb() {
       )
     `);
 
+    await conn.execute(`
+      CREATE TABLE IF NOT EXISTS leads (
+        id         INT PRIMARY KEY AUTO_INCREMENT,
+        salon_name VARCHAR(150) NOT NULL,
+        owner_name VARCHAR(100) NOT NULL,
+        phone      VARCHAR(30)  NOT NULL,
+        city       VARCHAR(100),
+        created_at DATETIME NOT NULL DEFAULT NOW(),
+        contacted  TINYINT NOT NULL DEFAULT 0
+      )
+    `);
+
     // ── Seed demo salon if empty ──────────────────────────────────────────────
     const [[{ n: salonCount }]] = await conn.execute("SELECT COUNT(*) as n FROM salons");
     if (salonCount > 0) return; // already seeded

@@ -212,15 +212,18 @@
       const btn = document.getElementById("cfSubmit");
       btn.disabled = true;
       btn.textContent = "Wird gesendet…";
-      // For now: log the lead to console (Stripe/email integration comes later)
-      const lead = {
-        salon: document.getElementById("cfSalon").value,
-        name:  document.getElementById("cfName").value,
-        phone: document.getElementById("cfPhone").value,
-        city:  document.getElementById("cfCity").value,
-      };
-      // Store lead via superadmin endpoint (optional: add a /api/leads endpoint later)
-      // For now just show success
+      try {
+        await fetch("/api/superadmin/leads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            salonName: document.getElementById("cfSalon").value.trim(),
+            ownerName: document.getElementById("cfName").value.trim(),
+            phone:     document.getElementById("cfPhone").value.trim(),
+            city:      document.getElementById("cfCity").value.trim(),
+          }),
+        });
+      } catch { /* silent fail — show success regardless */ }
       document.getElementById("cfSuccess").classList.remove("hidden");
       btn.style.display = "none";
       lucide.createIcons();

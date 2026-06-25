@@ -118,4 +118,35 @@ router.patch("/salons/:id", superAuth, async (req, res) => {
   res.json(salon);
 });
 
+// POST /api/leads — public, no auth required (from landing page contact form)
+router.post("/leads", async (req, res) => {
+  const { salonName, ownerName, phone, city } = req.body;
+  if (!salonName || !ownerName || !phone) {
+    return res.status(400).json({ error: "salonName, ownerName and phone are required" });
+  }
+  await pool.execute(
+    "INSERT INTO leads (salon_name, owner_name, phone, city) VALUES (?,?,?,?)",
+    [salonName.trim(), ownerName.trim(), phone.trim(), (city || "").trim() || null]
+  );
+  res.status(201).json({ ok: true });
+});
+
+// GET /api/superadmin/leads
+router.get("/leads", superAuth, async (req, res) => {
+  const [rows] = await pool.execute(
+    "SELECT * FROM leads ORDER BY created_at DESC"
+  );
+  res.json(rows);
+});
+
+// PATCH /api/superadmin/leads/:id — mark contacted
+router.patch("/leads/:id", superAuth, async (req, res) => {
+  const { contacted } = req.body;
+  await pool.execute(
+    "UPDATE leads SET contacted = ? WHERE id = ?",
+    [contacted ? 1 : 0, Number(req.params.id)]
+  );
+  res.json({ ok: true });
+});
+
 module.exports = router;
