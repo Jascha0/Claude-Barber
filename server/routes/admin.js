@@ -219,7 +219,7 @@ router.get("/debug-token-exchange", auth, async (req, res) => {
 
 // GET /api/admin/whatsapp-settings
 router.get("/whatsapp-settings", auth, async (req, res) => {
-  const keys = ["whatsapp_enabled", "meta_phone_number_id", "meta_waba_token", "meta_webhook_verify_token"];
+  const keys = ["whatsapp_enabled", "meta_phone_number_id", "meta_waba_token", "meta_webhook_verify_token", "meta_waba_token_expires"];
   const [rows] = await pool.execute(
     `SELECT \`key\`, value FROM settings WHERE salon_id = ? AND \`key\` IN (${keys.map(() => "?").join(",")})`,
     [req.salon.id, ...keys]

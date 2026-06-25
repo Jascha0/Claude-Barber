@@ -370,6 +370,27 @@ async function loadWhatsApp() {
   document.getElementById("waWebhookUrl").value       = `${location.origin}/api/webhook/whatsapp`;
   document.getElementById("waVerifyToken").value      = settings.meta_webhook_verify_token || "(set META_WEBHOOK_VERIFY_TOKEN in Railway env vars)";
 
+  // Token expiry status
+  const statusEl = document.getElementById("waTokenStatus");
+  if (statusEl) {
+    const expires = settings.meta_waba_token_expires;
+    const hasToken = !!settings.meta_waba_token;
+    if (!hasToken) {
+      statusEl.innerHTML = `<span class="wa-status wa-status--warn">⚠ Kein Token gespeichert</span>`;
+    } else if (!expires) {
+      statusEl.innerHTML = `<span class="wa-status wa-status--warn">Token-Ablauf unbekannt — wird automatisch erneuert</span>`;
+    } else {
+      const daysLeft = Math.floor((new Date(expires) - new Date()) / 86400000);
+      if (daysLeft < 0) {
+        statusEl.innerHTML = `<span class="wa-status wa-status--error">✕ Token abgelaufen seit ${expires}</span>`;
+      } else if (daysLeft <= 10) {
+        statusEl.innerHTML = `<span class="wa-status wa-status--warn">⚠ Token läuft ab in ${daysLeft} Tagen (${expires})</span>`;
+      } else {
+        statusEl.innerHTML = `<span class="wa-status wa-status--ok">✓ Token aktiv bis ${expires} (${daysLeft} Tage)</span>`;
+      }
+    }
+  }
+
   // Load staff with WhatsApp numbers
   const staff = await fetch(`${API}/staff`, { headers: authHeaders() }).then(r => r.json());
   document.getElementById("staffWaList").innerHTML = staff.map(s => `
