@@ -76,22 +76,28 @@ async function initDb() {
 
     await conn.execute(`
       CREATE TABLE IF NOT EXISTS bookings (
-        id             INT PRIMARY KEY AUTO_INCREMENT,
-        salon_id       INT NOT NULL,
-        service_id     INT NOT NULL,
-        staff_id       INT NOT NULL,
-        date           DATE NOT NULL,
-        time_slot      VARCHAR(5) NOT NULL,
-        customer_name  VARCHAR(100) NOT NULL,
-        customer_phone VARCHAR(30) NOT NULL,
-        status         VARCHAR(20) NOT NULL DEFAULT 'confirmed',
-        created_at     DATETIME NOT NULL DEFAULT NOW(),
+        id                  INT PRIMARY KEY AUTO_INCREMENT,
+        salon_id            INT NOT NULL,
+        service_id          INT NOT NULL,
+        staff_id            INT NOT NULL,
+        date                DATE NOT NULL,
+        time_slot           VARCHAR(5) NOT NULL,
+        customer_name       VARCHAR(100) NOT NULL,
+        customer_phone      VARCHAR(30) NOT NULL,
+        status              VARCHAR(20) NOT NULL DEFAULT 'confirmed',
+        cancellation_token  VARCHAR(36) UNIQUE,
+        created_at          DATETIME NOT NULL DEFAULT NOW(),
         UNIQUE KEY uq_staff_slot (salon_id, staff_id, date, time_slot),
         CONSTRAINT fk_bk_salon   FOREIGN KEY (salon_id)   REFERENCES salons(id),
         CONSTRAINT fk_bk_service FOREIGN KEY (service_id) REFERENCES services(id),
         CONSTRAINT fk_bk_staff   FOREIGN KEY (staff_id)   REFERENCES staff(id)
       )
     `);
+
+    // Migration: add cancellation_token if table already exists without it
+    await conn.execute("ALTER TABLE bookings ADD COLUMN cancellation_token VARCHAR(36) UNIQUE").catch(e => {
+      if (e.code !== "ER_DUP_FIELDNAME") throw e;
+    });
 
     await conn.execute(`
       CREATE TABLE IF NOT EXISTS blocked_slots (

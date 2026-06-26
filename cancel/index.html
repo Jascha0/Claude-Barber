@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Termin absagen</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --accent: #c9a84c;
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --border: #2e2e2e;
+      --text: #f0ede8;
+      --muted: #888;
+      --red: #e05555;
+      --green: #4caf6e;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 1.5rem;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 2.5rem 2rem;
+      width: min(440px, 100%);
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+    .logo {
+      font-size: 0.7rem;
+      font-weight: 800;
+      width: 32px; height: 32px;
+      background: var(--accent);
+      color: #000;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+    }
+    h1 { font-size: 1.35rem; }
+    .muted { color: var(--muted); font-size: 0.9rem; }
+    .detail-list {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      font-size: 0.9rem;
+    }
+    .detail-list dt { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .detail-list dd { font-weight: 600; }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-danger { background: var(--red); color: #fff; }
+    .btn-ghost  { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+    .status { text-align: center; font-size: 0.9rem; padding: 10px; border-radius: 8px; }
+    .status.ok  { background: rgba(76,175,110,0.12); color: var(--green); }
+    .status.err { background: rgba(224,85,85,0.12);  color: var(--red); }
+    #loading { text-align: center; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div id="loading">Lade Buchungsdaten…</div>
+  </div>
+
+  <script>
+    const token = location.pathname.split("/cancel/")[1]?.replace(/\//g, "");
+
+    async function loadBooking() {
+      if (!token) { showError("Ungültiger Link."); return; }
+      try {
+        const res = await fetch(`/api/cancel/${token}`);
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          showError(d.error || "Buchung nicht gefunden oder bereits abgesagt.");
+          return;
+        }
+        const { booking, service, staff, salon } = await res.json();
+        renderBooking(booking, service, staff, salon);
+      } catch {
+        showError("Verbindungsfehler. Bitte versuche es erneut.");
+      }
+    }
+
+    function renderBooking(b, service, staff, salon) {
+      const d = new Date(b.date + "T12:00:00");
+      const dateStr = d.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" });
+      document.getElementById("card").innerHTML = `
+        <div class="logo" id="salonLogo">BB</div>
+        <h1>Termin absagen</h1>
+        <p class="muted">Bist du sicher, dass du deinen Termin absagen möchtest?</p>
+        <dl class="detail-list">
+          <div><dt>Salon</dt><dd>${esc(salon.name)}</dd></div>
+          <div><dt>Service</dt><dd>${esc(service.name)}</dd></div>
+          <div><dt>Datum</dt><dd>${esc(dateStr)}</dd></div>
+          <div><dt>Uhrzeit</dt><dd>${esc(b.time_slot)} Uhr</dd></div>
+          <div><dt>Friseur</dt><dd>${esc(staff.name)}</dd></div>
+        </dl>
+        <div id="statusMsg"></div>
+        <button class="btn btn-danger" id="cancelBtn" onclick="confirmCancel()">Termin absagen</button>
+        <button class="btn btn-ghost" onclick="history.back()">Zurück</button>
+      `;
+      if (salon.logo_initials) document.getElementById("salonLogo").textContent = salon.logo_initials;
+      if (salon.primary_color) document.getElementById("salonLogo").style.background = salon.primary_color;
+    }
+
+    async function confirmCancel() {
+      const btn = document.getElementById("cancelBtn");
+      btn.disabled = true;
+      btn.textContent = "Wird abgesagt…";
+      try {
+        const res = await fetch(`/api/cancel/${token}`, { method: "POST" });
+        const d = await res.json().catch(() => ({}));
+        if (res.ok) {
+          document.getElementById("statusMsg").innerHTML =
+            `<div class="status ok">✓ Dein Termin wurde erfolgreich abgesagt.</div>`;
+          btn.remove();
+          document.querySelector(".btn-ghost").textContent = "Schließen";
+        } else {
+          document.getElementById("statusMsg").innerHTML =
+            `<div class="status err">${esc(d.error || "Fehler beim Absagen. Bitte ruf uns an.")}</div>`;
+          btn.disabled = false;
+          btn.textContent = "Erneut versuchen";
+        }
+      } catch {
+        document.getElementById("statusMsg").innerHTML =
+          `<div class="status err">Verbindungsfehler. Bitte versuche es erneut.</div>`;
+        btn.disabled = false;
+        btn.textContent = "Erneut versuchen";
+      }
+    }
+
+    function showError(msg) {
+      document.getElementById("card").innerHTML = `
+        <div class="logo">BB</div>
+        <h1>Termin absagen</h1>
+        <div class="status err">${esc(msg)}</div>
+        <button class="btn btn-ghost" onclick="history.back()">Zurück</button>
+      `;
+    }
+
+    function esc(v) {
+      return String(v ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+
+    loadBooking();
+  </script>
+</body>
+</html>

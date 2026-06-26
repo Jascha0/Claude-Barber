@@ -1,4 +1,5 @@
 const router = require("express").Router();
+const crypto = require("crypto");
 const { pool } = require("../db");
 const { sendBookingConfirmationToCustomer, sendBookingAlertToStaff } = require("../messaging");
 const { rules, rejectIfInvalid } = require("../middleware/validate");
@@ -52,9 +53,10 @@ router.post("/", rules.booking, rejectIfInvalid, async (req, res) => {
   }
 
   try {
+    const cancelToken = crypto.randomUUID();
     const [result] = await pool.execute(
-      "INSERT INTO bookings (salon_id, service_id, staff_id, date, time_slot, customer_name, customer_phone) VALUES (?,?,?,?,?,?,?)",
-      [salonId, service.id, assignedStaff, date, timeSlot, customerName.trim(), customerPhone.trim()]
+      "INSERT INTO bookings (salon_id, service_id, staff_id, date, time_slot, customer_name, customer_phone, cancellation_token) VALUES (?,?,?,?,?,?,?,?)",
+      [salonId, service.id, assignedStaff, date, timeSlot, customerName.trim(), customerPhone.trim(), cancelToken]
     );
     const [[booking]]  = await pool.execute("SELECT *, DATE_FORMAT(date,'%Y-%m-%d') as date FROM bookings WHERE id = ?", [result.insertId]);
     const [[staffRow]] = await pool.execute("SELECT * FROM staff WHERE id = ?", [assignedStaff]);

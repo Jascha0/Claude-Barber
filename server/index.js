@@ -75,6 +75,11 @@ app.use("/superadmin", express.static(path.join(__dirname, "..", "superadmin")))
 app.use("/landing",    express.static(path.join(__dirname, "..", "landing")));
 app.use("/vendor/lucide", express.static(path.join(__dirname, "..", "node_modules", "lucide", "dist", "umd")));
 
+// Cancellation page — token is in the URL path, served as SPA
+app.get("/cancel/:token", (req, res) => {
+  res.sendFile(path.join(__dirname, "..", "cancel", "index.html"));
+});
+
 // ── Root-domain (barberbook.de with no subdomain → landing page) ─────────────
 app.get("/", (req, res, next) => {
   const parts = req.hostname.split(".");
@@ -87,6 +92,9 @@ app.get("/", (req, res, next) => {
 
 // ── Super admin API (no tenant context needed) ────────────────────────────────
 app.use("/api/superadmin", require("./routes/superadmin"));
+
+// ── Self-cancellation API (no tenant context — keyed by cancellation_token) ──
+app.use("/api/cancel", require("./routes/cancel"));
 
 // ── Meta WhatsApp webhook (no tenant context — identified by phone number ID) ─
 app.use("/api/webhook", require("./routes/webhook"));

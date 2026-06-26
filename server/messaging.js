@@ -145,9 +145,12 @@ function formatDate(dateStr) {
 // ── Outbound messages ─────────────────────────────────────────────────────────
 
 async function sendBookingConfirmationToCustomer({ booking, service, staff, salon, salonId }) {
-  const bookingUrl = salon.domain
+  const baseUrl = salon.domain
     ? `https://${salon.domain}`
-    : `https://${salon.slug}.barberbook.de`;
+    : `https://claude-barber-production.up.railway.app`;
+  const cancelUrl = booking.cancellation_token
+    ? `${baseUrl}/cancel/${booking.cancellation_token}`
+    : null;
 
   await sendWhatsApp({
     to: booking.customer_phone,
@@ -158,6 +161,7 @@ async function sendBookingConfirmationToCustomer({ booking, service, staff, salo
       `✂️ ${service.name} · ${service.duration} Min. · ${service.price} €\n` +
       `👤 ${staff.name}\n` +
       `📍 ${salon.address}\n\n` +
+      (cancelUrl ? `❌ Termin absagen: ${cancelUrl}\n\n` : "") +
       `Bis bald! 💈`,
   });
 }
