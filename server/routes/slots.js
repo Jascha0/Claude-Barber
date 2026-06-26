@@ -23,11 +23,13 @@ router.get("/", async (req, res) => {
     "SELECT value FROM settings WHERE salon_id = ? AND `key` = 'hours'",
     [salonId]
   );
-  const hours = JSON.parse(hoursRow.value);
+  if (!hoursRow?.value) return res.json([]);
+  let hours;
+  try { hours = JSON.parse(hoursRow.value); } catch { return res.json([]); }
 
   const dow = new Date(date + "T12:00:00").getDay();
   const dayHours = hours[dow];
-  if (!dayHours) return res.json([]);
+  if (!Array.isArray(dayHours) || dayHours.length < 2) return res.json([]);
 
   const [open, close] = dayHours;
   const durationH = service.duration / 60;

@@ -266,6 +266,8 @@ async function handleSubmit(e) {
     });
     if (res.status === 409) {
       const data = await res.json().catch(() => ({}));
+      state.slot = null;
+      updateSummary();
       showToast(data.error || "Diese Zeit wurde gerade gebucht. Bitte wähle eine andere.");
       buildSlotGrid();
       btn.disabled = false;

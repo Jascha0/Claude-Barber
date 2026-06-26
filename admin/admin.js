@@ -111,7 +111,11 @@ async function loadToday() {
             <div class="details">${esc(s.staff_name) || "Alle Mitarbeiter"}${s.reason ? " · " + esc(s.reason) : ""}</div>
           </div>
           <div class="actions">
-            <button class="action-btn danger" onclick="deleteBlockedSlot(${s.staff_id}, '${s.date}', '${s.time_slot}')">Entsperren</button>
+            <button class="action-btn danger"
+              data-staff-id="${s.staff_id}"
+              data-date="${esc(s.date)}"
+              data-slot="${esc(s.time_slot)}"
+              onclick="deleteBlockedSlot(this)">Entsperren</button>
           </div>
         </div>
       `).join("")
@@ -151,7 +155,7 @@ async function loadBookings() {
   if (date)   params.set("date", date);
   if (status) params.set("status", status);
   const [bookings, blocked] = await Promise.all([
-    fetch(`${API}/bookings?${params}`, { headers: authHeaders() }).then(r => r.json()),
+    fetch(`${API}/bookings?${params}`, { headers: authHeaders() }).then(r => { if (r.status === 401) { logout(); throw new Error("unauth"); } return r.json(); }),
     fetch(`${API}/blocked-slots?${date ? "date=" + date : ""}`, { headers: authHeaders() }).then(r => r.json()),
   ]);
   renderBookings("bookingsList", bookings);
@@ -210,7 +214,9 @@ async function updateStatus(id, status) {
 
 // ── SERVICES ──
 async function loadServices() {
-  const services = await fetch(`${API}/services`, { headers: authHeaders() }).then(r => r.json());
+  const res = await fetch(`${API}/services`, { headers: authHeaders() });
+  if (res.status === 401) { logout(); return; }
+  const services = await res.json();
   document.getElementById("servicesList").innerHTML = services.map(s => `
     <div class="settings-card" id="svc-${s.id}">
       <div class="info">
@@ -505,7 +511,11 @@ function renderBlockedSlots(slots) {
         <div class="details">${esc(s.date)} · ${esc(s.staff_name) || "Alle Mitarbeiter"}${s.reason ? " · " + esc(s.reason) : ""}</div>
       </div>
       <div class="actions">
-        <button class="action-btn danger" onclick="deleteBlockedSlot(${s.staff_id}, '${s.date}', '${s.time_slot}')">Entsperren</button>
+        <button class="action-btn danger"
+          data-staff-id="${s.staff_id}"
+          data-date="${esc(s.date)}"
+          data-slot="${esc(s.time_slot)}"
+          onclick="deleteBlockedSlot(this)">Entsperren</button>
       </div>
     </div>
   `).join("");
@@ -523,10 +533,11 @@ async function openBlockModal() {
   sel.innerHTML = `<option value="0">Alle Mitarbeiter</option>` +
     STAFF_CACHE.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
 
-  // Set date default to today (local timezone)
+  // Reset state from any previous use
   const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" }).format(new Date());
-  document.getElementById("blockDate").value = today;
+  document.getElementById("blockDate").value  = today;
   document.getElementById("blockReason").value = "";
+  document.getElementById("blockSlot").innerHTML = `<option value="">– Datum zuerst wählen –</option>`;
   await loadBlockSlots();
 
   document.getElementById("blockDate").onchange   = loadBlockSlots;
@@ -579,7 +590,10 @@ async function saveBlockedSlot() {
   }
 }
 
-async function deleteBlockedSlot(staffId, date, timeSlot) {
+async function deleteBlockedSlot(btn) {
+  const staffId  = btn.dataset.staffId;
+  const date     = btn.dataset.date;
+  const timeSlot = btn.dataset.slot;
   const res = await fetch(`${API}/blocked-slots`, {
     method: "DELETE",
     headers: authHeaders(),
