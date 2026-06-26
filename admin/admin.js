@@ -93,8 +93,8 @@ function setTodayDate() {
 async function loadToday() {
   const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" }).format(new Date());
   const [bookings, stats, blocked] = await Promise.all([
-    fetch(`${API}/bookings/today`, { headers: authHeaders() }).then(r => r.json()),
-    fetch(`${API}/stats`, { headers: authHeaders() }).then(r => r.json()),
+    fetch(`${API}/bookings/today`, { headers: authHeaders() }).then(r => { if (r.status === 401) { logout(); throw new Error("unauth"); } return r.json(); }),
+    fetch(`${API}/stats`,         { headers: authHeaders() }).then(r => r.json()),
     fetch(`${API}/blocked-slots?date=${today}`, { headers: authHeaders() }).then(r => r.json()),
   ]);
   renderStats(stats);
