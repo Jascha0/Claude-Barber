@@ -56,7 +56,7 @@ router.post("/", rules.booking, rejectIfInvalid, async (req, res) => {
       "INSERT INTO bookings (salon_id, service_id, staff_id, date, time_slot, customer_name, customer_phone) VALUES (?,?,?,?,?,?,?)",
       [salonId, service.id, assignedStaff, date, timeSlot, customerName.trim(), customerPhone.trim()]
     );
-    const [[booking]]  = await pool.execute("SELECT * FROM bookings WHERE id = ?", [result.insertId]);
+    const [[booking]]  = await pool.execute("SELECT *, DATE_FORMAT(date,'%Y-%m-%d') as date FROM bookings WHERE id = ?", [result.insertId]);
     const [[staffRow]] = await pool.execute("SELECT * FROM staff WHERE id = ?", [assignedStaff]);
     const [[salon]]    = await pool.execute("SELECT * FROM salons WHERE id = ?", [salonId]);
 

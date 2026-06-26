@@ -34,7 +34,10 @@ router.post("/login", rules.login, rejectIfInvalid, async (req, res) => {
 router.get("/bookings", auth, async (req, res) => {
   const { date, status } = req.query;
   let sql = `
-    SELECT b.*, s.name as service_name, s.price, s.duration, st.name as staff_name
+    SELECT b.id, b.salon_id, b.service_id, b.staff_id, b.time_slot, b.status,
+           b.customer_name, b.customer_phone, b.created_at,
+           DATE_FORMAT(b.date, '%Y-%m-%d') as date,
+           s.name as service_name, s.price, s.duration, st.name as staff_name
     FROM bookings b
     JOIN services s  ON b.service_id = s.id
     JOIN staff    st ON b.staff_id   = st.id
@@ -52,7 +55,10 @@ router.get("/bookings", auth, async (req, res) => {
 router.get("/bookings/today", auth, async (req, res) => {
   const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" }).format(new Date());
   const [rows] = await pool.execute(`
-    SELECT b.*, s.name as service_name, s.price, s.duration, st.name as staff_name
+    SELECT b.id, b.salon_id, b.service_id, b.staff_id, b.time_slot, b.status,
+           b.customer_name, b.customer_phone, b.created_at,
+           DATE_FORMAT(b.date, '%Y-%m-%d') as date,
+           s.name as service_name, s.price, s.duration, st.name as staff_name
     FROM bookings b
     JOIN services s  ON b.service_id = s.id
     JOIN staff    st ON b.staff_id   = st.id

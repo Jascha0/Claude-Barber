@@ -122,7 +122,7 @@ function buildServiceGrid() {
   const grid = document.getElementById("serviceGrid");
   if (!grid) return;
   grid.innerHTML = SERVICES.map(s => `
-    <div class="service-card" onclick="selectServiceFromCard(${s.id})">
+    <div class="service-card" data-id="${s.id}" onclick="selectServiceFromCard(${s.id})">
       <div class="service-card__name">${esc(s.name)}</div>
       <div class="service-card__meta">
         <span class="service-card__price">${s.price} €</span>
@@ -137,6 +137,7 @@ function selectServiceFromCard(id) {
   state.serviceId = id;
   document.getElementById("serviceSelect").value = id;
   state.slot = null;
+  document.querySelectorAll(".service-card").forEach(c => c.classList.toggle("selected", Number(c.dataset.id) === id));
   buildSlotGrid();
   updateSummary();
   document.getElementById("booking").scrollIntoView({ behavior: "smooth" });
@@ -202,10 +203,14 @@ async function buildSlotGrid() {
       `/api/slots?date=${state.date}&serviceId=${state.serviceId}&staffId=${state.staffId}`
     ).then(r => r.json());
     if (!slots.length) {
-      grid.innerHTML = `<p style="color:var(--muted);font-size:.85rem">Heute keine freien Zeiten.</p>`;
+      grid.innerHTML = `<p style="color:var(--muted);font-size:.85rem">Keine Zeiten verfügbar.</p>`;
       return;
     }
-    grid.innerHTML = slots.map(({ time, available }) => `
+    const freeCount = slots.filter(s => s.available).length;
+    const label = freeCount === 0
+      ? `<p class="slots-label" style="color:var(--danger,#e05555)">Keine freien Zeiten</p>`
+      : `<p class="slots-label">${freeCount} freie Zeit${freeCount !== 1 ? "en" : ""}</p>`;
+    grid.innerHTML = label + slots.map(({ time, available }) => `
       <button type="button" class="slot-btn${!available ? " taken" : ""}"
         ${!available ? "disabled" : ""} onclick="selectSlot('${time}',this)">${time}</button>
     `).join("");
@@ -244,12 +249,18 @@ async function handleSubmit(e) {
   e.preventDefault();
   if (!state.date || !state.slot) { showToast("Bitte wähle ein Datum und eine Uhrzeit."); return; }
 
+  const customerName  = document.getElementById("nameInput").value.trim();
+  const customerPhone = document.getElementById("phoneInput").value.trim();
+
+  // Basic phone validation — must start with + and have 7-15 digits
+  if (!/^\+?[0-9\s\-()]{7,20}$/.test(customerPhone)) {
+    showToast("Bitte gib eine gültige Telefonnummer ein (z.B. +49 179 1234567).");
+    return;
+  }
+
   const btn = e.target.querySelector(".submit-btn");
   btn.disabled = true;
   btn.textContent = "Wird gebucht…";
-
-  const customerName  = document.getElementById("nameInput").value.trim();
-  const customerPhone = document.getElementById("phoneInput").value.trim();
 
   try {
     const res = await fetch("/api/bookings", {
