@@ -40,6 +40,9 @@ function showDashboard() {
   applyAdminBranding();
   switchView("today");
   setTodayDate();
+  updateMsgBadge();
+  // Poll unread count every 60s while dashboard is open
+  setInterval(updateMsgBadge, 60_000);
 }
 
 async function applyAdminBranding() {
@@ -80,6 +83,7 @@ function switchView(name, btn) {
   if (name === "bookings")  loadBookings();
   if (name === "services")  loadServices();
   if (name === "staff")     loadStaff();
+  if (name === "messages")  loadMessages();
   if (name === "whatsapp")  loadWhatsApp();
   if (name === "settings")  loadSettings();
 }
@@ -603,6 +607,71 @@ async function deleteBlockedSlot(btn) {
     showToast("Zeit entsperrt.");
     loadBookings();
   }
+}
+
+// ── MESSAGES / INBOX ──
+async function updateMsgBadge() {
+  try {
+    const { count } = await fetch(`${API}/messages/unread-count`, { headers: authHeaders() }).then(r => r.json());
+    const badge = document.getElementById("msgBadge");
+    if (!badge) return;
+    if (count > 0) {
+      badge.textContent = count > 99 ? "99+" : count;
+      badge.classList.remove("hidden");
+    } else {
+      badge.classList.add("hidden");
+    }
+  } catch { /* ignore — badge stays as-is */ }
+}
+
+async function loadMessages() {
+  const unreadOnly = document.getElementById("msgUnreadOnly")?.checked ? "1" : "";
+  const url = `${API}/messages${unreadOnly ? "?unread=1" : ""}`;
+  const msgs = await fetch(url, { headers: authHeaders() }).then(r => r.json());
+  const el = document.getElementById("messagesList");
+  if (!msgs.length) {
+    el.innerHTML = `<div class="empty-msg">${unreadOnly ? "Keine ungelesenen Nachrichten." : "Noch keine Nachrichten eingegangen."}</div>`;
+    return;
+  }
+  el.innerHTML = msgs.map(m => {
+    const intentLabel = m.intent === "book"
+      ? `<span class="badge badge-confirmed">Buchungsanfrage</span>`
+      : `<span class="badge badge-no-show">Andere Frage</span>`;
+    const readClass = m.is_read ? "" : " msg-unread";
+    const wa = `https://wa.me/${m.from_phone.replace(/[^0-9]/g, "")}`;
+    const ts = new Date(m.created_at).toLocaleString("de-DE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    return `
+      <div class="booking-card${readClass}" id="msg-${m.id}">
+        <div class="time" style="min-width:3.5rem;font-size:0.75rem;text-align:center">${ts}</div>
+        <div class="info">
+          <div class="customer">${esc(m.from_phone)} ${intentLabel}</div>
+          <div class="details" style="white-space:pre-wrap;max-width:60ch">${esc(m.message_text)}</div>
+        </div>
+        <div class="actions">
+          <a class="action-btn" href="${wa}" target="_blank" rel="noopener" style="text-decoration:none">
+            <i data-lucide="message-circle" style="width:14px;height:14px;vertical-align:middle"></i> Antworten
+          </a>
+          ${!m.is_read ? `<button class="action-btn" onclick="markAsRead(${m.id})">Gelesen</button>` : ""}
+        </div>
+      </div>`;
+  }).join("");
+  lucide.createIcons();
+}
+
+async function markAsRead(id) {
+  await fetch(`${API}/messages/${id}/read`, { method: "PATCH", headers: authHeaders() });
+  const card = document.getElementById(`msg-${id}`);
+  if (card) card.classList.remove("msg-unread");
+  const btn = card?.querySelector(`button[onclick="markAsRead(${id})"]`);
+  if (btn) btn.remove();
+  updateMsgBadge();
+}
+
+async function markAllRead() {
+  await fetch(`${API}/messages/read-all`, { method: "PATCH", headers: authHeaders() });
+  showToast("Alle als gelesen markiert.");
+  loadMessages();
+  updateMsgBadge();
 }
 
 // ── TOAST ──

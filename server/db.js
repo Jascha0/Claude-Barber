@@ -119,6 +119,20 @@ async function initDb() {
       )
     `);
 
+    await conn.execute(`
+      CREATE TABLE IF NOT EXISTS whatsapp_messages (
+        id           INT PRIMARY KEY AUTO_INCREMENT,
+        salon_id     INT NOT NULL,
+        from_phone   VARCHAR(30)  NOT NULL,
+        message_text TEXT         NOT NULL,
+        intent       VARCHAR(20)  NOT NULL DEFAULT 'other',
+        replied      TINYINT      NOT NULL DEFAULT 0,
+        is_read      TINYINT      NOT NULL DEFAULT 0,
+        created_at   DATETIME     NOT NULL DEFAULT NOW(),
+        CONSTRAINT fk_wam_salon FOREIGN KEY (salon_id) REFERENCES salons(id)
+      )
+    `);
+
     // ── Seed demo salon if empty ──────────────────────────────────────────────
     const [[{ n: salonCount }]] = await conn.execute("SELECT COUNT(*) as n FROM salons");
     if (salonCount > 0) return; // already seeded

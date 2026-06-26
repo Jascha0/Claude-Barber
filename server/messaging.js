@@ -104,6 +104,10 @@ async function refreshExpiringTokens() {
   if (rows.length) console.log(`[whatsapp] auto-refreshed tokens for ${rows.length} salon(s)`);
 }
 
+async function sendWhatsAppText({ to, salonId, message }) {
+  return sendWhatsApp({ to, salonId, message });
+}
+
 async function sendWhatsApp({ to, message, salonId }) {
   const cfg = await getSalonWhatsAppConfig(salonId);
 
@@ -208,6 +212,7 @@ module.exports = {
   sendBookingAlertToStaff,
   sendReminder,
   sendBookingLinkReply,
+  sendWhatsAppText,
   refreshWabaToken,
   refreshExpiringTokens,
 };

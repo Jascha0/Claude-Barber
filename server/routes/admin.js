@@ -332,6 +332,48 @@ router.patch("/hours", auth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// GET /api/admin/messages — WhatsApp inbox
+router.get("/messages", auth, async (req, res) => {
+  const { unread } = req.query;
+  let sql = `
+    SELECT id, from_phone, message_text, intent, replied, is_read, created_at
+    FROM whatsapp_messages
+    WHERE salon_id = ?
+  `;
+  const params = [req.salon.id];
+  if (unread === "1") { sql += " AND is_read = 0"; }
+  sql += " ORDER BY created_at DESC LIMIT 200";
+  const [rows] = await pool.execute(sql, params);
+  res.json(rows);
+});
+
+// GET /api/admin/messages/unread-count
+router.get("/messages/unread-count", auth, async (req, res) => {
+  const [[{ n }]] = await pool.execute(
+    "SELECT COUNT(*) as n FROM whatsapp_messages WHERE salon_id = ? AND is_read = 0",
+    [req.salon.id]
+  );
+  res.json({ count: n });
+});
+
+// PATCH /api/admin/messages/:id/read
+router.patch("/messages/:id/read", auth, async (req, res) => {
+  await pool.execute(
+    "UPDATE whatsapp_messages SET is_read = 1 WHERE id = ? AND salon_id = ?",
+    [Number(req.params.id), req.salon.id]
+  );
+  res.json({ ok: true });
+});
+
+// PATCH /api/admin/messages/read-all
+router.patch("/messages/read-all", auth, async (req, res) => {
+  await pool.execute(
+    "UPDATE whatsapp_messages SET is_read = 1 WHERE salon_id = ?",
+    [req.salon.id]
+  );
+  res.json({ ok: true });
+});
+
 // PATCH /api/admin/password
 router.patch("/password", auth, rules.changePassword, rejectIfInvalid, async (req, res) => {
   const { newPassword } = req.body;

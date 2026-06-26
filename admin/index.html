@@ -44,6 +44,10 @@
         <button class="nav-item" data-view="staff" onclick="switchView('staff', this)">
           <i data-lucide="users"></i> Mitarbeiter
         </button>
+        <button class="nav-item" data-view="messages" onclick="switchView('messages', this)">
+          <i data-lucide="inbox"></i> Nachrichten
+          <span class="nav-badge hidden" id="msgBadge">0</span>
+        </button>
         <button class="nav-item" data-view="whatsapp" onclick="switchView('whatsapp', this)">
           <i data-lucide="message-circle"></i> WhatsApp
         </button>
@@ -196,6 +200,25 @@
           </div>
           <button class="cfg-save-btn" onclick="savePassword()">Passwort ändern</button>
         </div>
+      </div>
+
+      <!-- MESSAGES / INBOX VIEW -->
+      <div id="view-messages" class="view hidden">
+        <div class="view-header">
+          <h2>Nachrichten</h2>
+          <div class="filter-row">
+            <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;color:var(--muted)">
+              <input type="checkbox" id="msgUnreadOnly" onchange="loadMessages()" style="width:auto" />
+              Nur ungelesen
+            </label>
+            <button class="cfg-add-btn" onclick="markAllRead()">Alle als gelesen</button>
+          </div>
+        </div>
+        <p class="wa-hint" style="margin-bottom:1.2rem">
+          Eingehende WhatsApp-Nachrichten von Kunden. Buchungsanfragen werden automatisch mit dem Buchungslink beantwortet.
+          Andere Nachrichten erscheinen hier zur manuellen Bearbeitung.
+        </p>
+        <div id="messagesList" class="booking-list"></div>
       </div>
 
       <!-- WHATSAPP VIEW -->
