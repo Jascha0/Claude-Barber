@@ -9,9 +9,11 @@ cron.schedule("0 18 * * *", async () => {
   const dateStr = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" }).format(tomorrowDate);
 
   const [bookings] = await pool.execute(`
-    SELECT b.*, s.name as service_name, s.duration, s.price
+    SELECT b.*, s.name as service_name, s.duration, s.price,
+           sal.name as salon_name, sal.address as salon_address, sal.domain as salon_domain
     FROM bookings b
-    JOIN services s ON b.service_id = s.id AND b.salon_id = s.salon_id
+    JOIN services s  ON b.service_id = s.id
+    JOIN salons   sal ON b.salon_id  = sal.id
     WHERE b.date = ? AND b.status = 'confirmed'
   `, [dateStr]);
 
@@ -19,8 +21,9 @@ cron.schedule("0 18 * * *", async () => {
     try {
       await sendReminder({
         booking,
-        service:  { name: booking.service_name, duration: booking.duration, price: booking.price },
-        salonId:  booking.salon_id,
+        service: { name: booking.service_name, duration: booking.duration, price: booking.price },
+        salon:   { name: booking.salon_name, address: booking.salon_address, domain: booking.salon_domain },
+        salonId: booking.salon_id,
       });
     } catch (err) {
       console.error(`Reminder failed for booking ${booking.id}:`, err.message);
