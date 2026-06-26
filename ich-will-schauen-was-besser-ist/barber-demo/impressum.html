@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="de">
 <head>
   <meta charset="utf-8" />
@@ -24,13 +24,13 @@
   </div>
 
   <div class="legal-page">
-    <a class="back-link" href="/">&#8592; Zurück zur Startseite</a>
+    <a class="back-link" href="/">&#8592; ZurÃ¼ck zur Startseite</a>
     <h1>Impressum</h1>
 
-    <h2>Angaben gemäß § 5 TMG</h2>
+    <h2>Angaben gemÃ¤ÃŸ Â§ 5 TMG</h2>
     <address>
       Next Level Salon<br />
-      Musterstraße 1<br />
+      MusterstraÃŸe 1<br />
       00000 Musterstadt<br />
       Deutschland
     </address>
@@ -41,28 +41,28 @@
       E-Mail: info@beispiel.de
     </p>
 
-    <h2>Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV</h2>
+    <h2>Verantwortlich fÃ¼r den Inhalt nach Â§ 55 Abs. 2 RStV</h2>
     <address>
       Vorname Nachname<br />
-      Musterstraße 1<br />
+      MusterstraÃŸe 1<br />
       00000 Musterstadt
     </address>
 
     <h2>Haftungsausschluss</h2>
     <p>
-      Trotz sorgfältiger inhaltlicher Kontrolle übernehmen wir keine Haftung für die
-      Inhalte externer Links. Für den Inhalt der verlinkten Seiten sind ausschließlich
+      Trotz sorgfÃ¤ltiger inhaltlicher Kontrolle Ã¼bernehmen wir keine Haftung fÃ¼r die
+      Inhalte externer Links. FÃ¼r den Inhalt der verlinkten Seiten sind ausschlieÃŸlich
       deren Betreiber verantwortlich.
     </p>
   </div>
 
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="/vendor/lucide/lucide.min.js"></script>
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       fetch("/api/salon").then(r => r.json()).then(s => {
         document.querySelectorAll("[data-salon='name']").forEach(el => el.textContent = s.name);
         document.querySelectorAll("[data-salon='initials']").forEach(el => el.textContent = s.logoInitials);
-        document.title = s.name + " – Impressum";
+        document.title = s.name + " â€“ Impressum";
       }).catch(() => {});
     });
   </script>

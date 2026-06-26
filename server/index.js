@@ -72,6 +72,7 @@ app.use(express.static(path.join(__dirname, "..", "ich-will-schauen-was-besser-i
 app.use("/admin",      express.static(path.join(__dirname, "..", "admin")));
 app.use("/superadmin", express.static(path.join(__dirname, "..", "superadmin")));
 app.use("/landing",    express.static(path.join(__dirname, "..", "landing")));
+app.use("/vendor/lucide", express.static(path.join(__dirname, "..", "node_modules", "lucide", "dist", "umd")));
 
 // ── Root-domain (barberbook.de with no subdomain → landing page) ─────────────
 app.get("/", (req, res, next) => {

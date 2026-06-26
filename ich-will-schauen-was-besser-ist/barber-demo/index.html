@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="de">
   <head>
     <meta charset="utf-8" />
@@ -6,7 +6,7 @@
     <title>Salon | Online buchen</title>
     <meta name="description" content="Termin online buchen." />
     <link rel="stylesheet" href="styles.css" />
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+    <script src="/vendor/lucide/lucide.min.js" defer></script>
     <script src="script.js" defer></script>
   </head>
   <body>
@@ -33,9 +33,9 @@
         </div>
         <div class="hero-content">
           <p class="eyebrow" data-salon="address"></p>
-          <h1 id="hero-title">Dein nächster Schnitt.</h1>
+          <h1 id="hero-title">Dein nÃ¤chster Schnitt.</h1>
           <p class="hero-copy">
-            Wähle deinen Service und sichere dir direkt einen freien Termin.
+            WÃ¤hle deinen Service und sichere dir direkt einen freien Termin.
           </p>
           <div class="hero-actions">
             <a class="primary-action" href="#booking">
@@ -53,7 +53,7 @@
       <section class="quick-strip" aria-label="Kurzinfos">
         <div>
           <span>Heute</span>
-          <strong id="todayHours">–</strong>
+          <strong id="todayHours">â€“</strong>
         </div>
         <div>
           <span>Zahlung</span>
@@ -89,14 +89,14 @@
         <div class="booking-right">
           <div id="bookingPanel">
             <form class="booking-panel" id="bookingForm">
-              <label>Gewünschte Leistung
+              <label>GewÃ¼nschte Leistung
                 <select id="serviceSelect" name="serviceId" required></select>
               </label>
-              <label>Gewünschter Friseur
+              <label>GewÃ¼nschter Friseur
                 <select id="staffSelect" name="staffId"></select>
               </label>
-              <div class="date-row" id="dateRow" role="group" aria-label="Datum wählen"></div>
-              <div class="slot-grid" id="slotGrid" role="group" aria-label="Uhrzeit wählen"></div>
+              <div class="date-row" id="dateRow" role="group" aria-label="Datum wÃ¤hlen"></div>
+              <div class="slot-grid" id="slotGrid" role="group" aria-label="Uhrzeit wÃ¤hlen"></div>
               <div class="input-grid">
                 <label>Name
                   <input id="nameInput" name="name" placeholder="Dein Name" required />
@@ -105,18 +105,18 @@
                   <input id="phoneInput" name="phone" placeholder="+49 ..." required />
                 </label>
               </div>
-              <div class="summary" id="bookingSummary">Wähle Service und freien Termin.</div>
+              <div class="summary" id="bookingSummary">WÃ¤hle Service und freien Termin.</div>
               <button class="submit-btn" type="submit">
                 <i data-lucide="calendar-check" aria-hidden="true"></i>
                 Termin buchen
               </button>
-              <p class="microcopy">Die freien Zeiten passen zur gewählten Leistung, Dauer und zum ausgewählten Mitarbeiter.</p>
+              <p class="microcopy">Die freien Zeiten passen zur gewÃ¤hlten Leistung, Dauer und zum ausgewÃ¤hlten Mitarbeiter.</p>
             </form>
           </div>
 
           <div id="bookingSuccess" class="booking-success" style="display:none" aria-live="polite">
             <div class="success-check"><i data-lucide="check" aria-hidden="true"></i></div>
-            <h3>Termin bestätigt!</h3>
+            <h3>Termin bestÃ¤tigt!</h3>
             <p class="success-sub">Wir freuen uns auf deinen Besuch, <strong id="successName"></strong>.</p>
             <dl class="success-details">
               <div><dt><i data-lucide="scissors" aria-hidden="true"></i>Leistung</dt><dd id="successService"></dd></div>
@@ -126,7 +126,7 @@
               <div><dt><i data-lucide="banknote" aria-hidden="true"></i>Preis</dt><dd id="successPrice"></dd></div>
               <div><dt><i data-lucide="smartphone" aria-hidden="true"></i>WhatsApp</dt><dd id="successPhone"></dd></div>
             </dl>
-            <p class="success-note">Du erhältst eine Bestätigung per WhatsApp. Bitte erscheine pünktlich.</p>
+            <p class="success-note">Du erhÃ¤ltst eine BestÃ¤tigung per WhatsApp. Bitte erscheine pÃ¼nktlich.</p>
             <button class="submit-btn" onclick="resetBooking()" style="margin-top:0.5rem">
               <i data-lucide="plus" aria-hidden="true"></i>
               Neuen Termin buchen
@@ -143,10 +143,10 @@
         </div>
         <div class="location-layout">
           <div class="hours">
-            <h3>Öffnungszeiten</h3>
+            <h3>Ã–ffnungszeiten</h3>
             <dl id="hoursList"></dl>
             <a class="text-link" id="mapsLink" href="#" target="_blank" rel="noopener">
-              Route öffnen
+              Route Ã¶ffnen
             </a>
           </div>
           <iframe id="mapsFrame" title="Standortkarte" src="" loading="lazy"></iframe>
