@@ -111,18 +111,22 @@ router.post("/whatsapp", verifyMetaSignature, async (req, res) => {
 
 // ── Cancel intent handler ─────────────────────────────────────────────────────
 async function handleCancelIntent({ customerPhone, salon }) {
-  // Find the customer's next upcoming confirmed booking at this salon
+  // Normalize: strip everything except digits, take last 9 to match regardless of
+  // how the customer typed their number at booking time (+49 179... vs 0179... etc.)
+  const digits9 = customerPhone.replace(/\D/g, "").slice(-9);
+
   const [bookings] = await pool.execute(`
     SELECT b.id, DATE_FORMAT(b.date, '%Y-%m-%d') as date, b.time_slot, b.cancellation_token,
            s.name as service_name, st.name as staff_name
     FROM bookings b
     JOIN services s  ON b.service_id = s.id
     JOIN staff    st ON b.staff_id   = st.id
-    WHERE b.salon_id = ? AND b.customer_phone = ?
+    WHERE b.salon_id = ?
+      AND REGEXP_REPLACE(b.customer_phone, '[^0-9]', '') LIKE CONCAT('%', ?)
       AND b.status = 'confirmed' AND b.date >= CURDATE()
     ORDER BY b.date ASC, b.time_slot ASC
     LIMIT 3
-  `, [salon.id, customerPhone]);
+  `, [salon.id, digits9]);
 
   if (!bookings.length) {
     await sendWhatsAppText({
