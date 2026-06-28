@@ -13,12 +13,15 @@
 
 require("dotenv").config();
 
-const key = process.argv[2] || process.env.ANTHROPIC_API_KEY;
-if (!key) {
-  console.error("Usage: node scripts/test-ai-classify.js YOUR_API_KEY");
-  process.exit(1);
+const key = process.argv[2];
+// If key arg is provided and looks real, use it. Otherwise run in keyword-fallback mode.
+const usingRealKey = key && key.startsWith("sk-ant-api");
+if (usingRealKey) {
+  process.env.ANTHROPIC_API_KEY = key;
+} else {
+  delete process.env.ANTHROPIC_API_KEY; // force keyword fallback
+  if (!key) console.log("No API key provided — running in keyword-fallback mode.\n");
 }
-process.env.ANTHROPIC_API_KEY = key;
 
 const { classifyIntent } = require("../server/ai");
 
@@ -56,7 +59,7 @@ const BOLD   = "\x1b[1m";
 async function run() {
   console.log(`\n${BOLD}Testing AI intent classification...${RESET}\n`);
   const usingAI = !!process.env.ANTHROPIC_API_KEY;
-  console.log(`Mode: ${usingAI ? `${GREEN}Claude Haiku (AI)${RESET}` : `${YELLOW}Keyword fallback${RESET}`}\n`);
+  console.log(`Mode: ${usingRealKey ? `${GREEN}Claude Haiku (AI)${RESET}` : `${YELLOW}Keyword fallback${RESET}`}\n`);
 
   let passed = 0;
   let failed = 0;

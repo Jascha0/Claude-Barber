@@ -49,15 +49,22 @@ async function classifyWithAI(text) {
 }
 
 // Keyword fallback — used when AI is unavailable
-const BOOK_KEYWORDS = [
-  "termin", "buchen", "buchung", "reservier", "slot", "zeit", "uhrzeit",
-  "verfügbar", "frei", "wann", "morgen", "heute", "nächste woche",
-  "appointment", "book", "schnitt", "haarschnitt", "bart",
-  "möchte", "hätte gerne", "würde gerne",
-];
+// More specific phrases first to avoid false positives (e.g. "heute" alone is too broad)
 const CANCEL_KEYWORDS = [
-  "absagen", "stornieren", "storno", "absage", "abmelden", "abbestellen",
-  "cancel", "cancell", "nicht mehr", "kann nicht", "muss absagen",
+  "absagen", "absage", "abgesagt", "sagt ab", "termin ab", "sage ab",
+  "stornieren", "storno", "storniert",
+  "abmelden", "abbestellen",
+  "verschieben", "umbuchen", "umplanen",
+  "cancel", "nicht mehr kommen", "kann nicht kommen", "kann leider nicht",
+  "muss leider absagen", "komme nicht",
+];
+const BOOK_KEYWORDS = [
+  "termin buchen", "termin machen", "termin anfragen", "termin reserv",
+  "buchen", "buchung", "reservier", "appointment", "book",
+  "noch was frei", "noch frei", "noch platz frei", "noch ein platz",
+  "verfügbar", "nächste woche", "diese woche",
+  "wann kann ich", "wann habt ihr noch",
+  "hätte gerne", "würde gerne",
 ];
 
 function classifyWithKeywords(text) {
