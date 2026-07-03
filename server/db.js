@@ -120,6 +120,17 @@ async function initDb() {
     `);
 
     await conn.execute(`
+      CREATE TABLE IF NOT EXISTS sessions (
+        id         INT PRIMARY KEY AUTO_INCREMENT,
+        salon_id   INT NOT NULL,
+        token      VARCHAR(64) UNIQUE NOT NULL,
+        expires_at DATETIME NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT NOW(),
+        CONSTRAINT fk_sess_salon FOREIGN KEY (salon_id) REFERENCES salons(id)
+      )
+    `);
+
+    await conn.execute(`
       CREATE TABLE IF NOT EXISTS whatsapp_messages (
         id           INT PRIMARY KEY AUTO_INCREMENT,
         salon_id     INT NOT NULL,

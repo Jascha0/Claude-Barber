@@ -61,7 +61,10 @@ async function applyAdminBranding() {
   } catch { /* keep defaults */ }
 }
 
-function logout() {
+async function logout() {
+  try {
+    await fetch(`${API}/logout`, { method: "POST", headers: authHeaders() });
+  } catch { /* ignore network errors — still clear local state */ }
   TOKEN = "";
   localStorage.removeItem("admin_token");
   document.getElementById("dashboard").classList.add("hidden");

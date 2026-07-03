@@ -1,19 +1,18 @@
 const router  = require("express").Router();
+const crypto  = require("crypto");
 const bcrypt  = require("bcryptjs");
 const { pool } = require("../db");
 const { rules, rejectIfInvalid } = require("../middleware/validate");
 const { refreshWabaToken } = require("../messaging");
 
 async function auth(req, res, next) {
-  const token   = req.headers["x-admin-token"];
-  const salonId = req.salon.id;
-  const [[row]] = await pool.execute(
-    "SELECT value FROM settings WHERE salon_id = ? AND `key` = 'admin_password'",
-    [salonId]
+  const token = req.headers["x-admin-token"];
+  if (!token) return res.status(401).json({ error: "Unauthorized" });
+  const [[session]] = await pool.execute(
+    "SELECT id FROM sessions WHERE salon_id = ? AND token = ? AND expires_at > NOW()",
+    [req.salon.id, token]
   );
-  if (!token || !row?.value) return res.status(401).json({ error: "Unauthorized" });
-  const valid = await bcrypt.compare(token, row.value);
-  if (!valid) return res.status(401).json({ error: "Unauthorized" });
+  if (!session) return res.status(401).json({ error: "Unauthorized" });
   next();
 }
 
@@ -27,7 +26,31 @@ router.post("/login", rules.login, rejectIfInvalid, async (req, res) => {
   if (!row?.value) return res.status(401).json({ error: "Wrong password" });
   const valid = await bcrypt.compare(password, row.value);
   if (!valid) return res.status(401).json({ error: "Wrong password" });
-  res.json({ token: password });
+
+  const token = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  const expiresStr = expiresAt.toISOString().slice(0, 19).replace("T", " ");
+
+  // Prune expired sessions, then insert new one
+  await pool.execute("DELETE FROM sessions WHERE salon_id = ? AND expires_at < NOW()", [req.salon.id]);
+  await pool.execute(
+    "INSERT INTO sessions (salon_id, token, expires_at) VALUES (?,?,?)",
+    [req.salon.id, token, expiresStr]
+  );
+
+  res.json({ token });
+});
+
+// POST /api/admin/logout
+router.post("/logout", async (req, res) => {
+  const token = req.headers["x-admin-token"];
+  if (token) {
+    await pool.execute(
+      "DELETE FROM sessions WHERE token = ? AND salon_id = ?",
+      [token, req.salon.id]
+    ).catch(() => {});
+  }
+  res.json({ ok: true });
 });
 
 // GET /api/admin/bookings?date=YYYY-MM-DD&status=...
