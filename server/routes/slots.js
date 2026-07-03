@@ -7,6 +7,15 @@ function decimalToTime(h) {
   return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
 }
 
+function timeToMin(t) {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function overlaps(s1, d1, s2, d2) {
+  return s1 < s2 + d2 && s2 < s1 + d1;
+}
+
 router.get("/", async (req, res) => {
   const { date, serviceId, staffId } = req.query;
   const salonId = req.salon.id;
@@ -43,27 +52,49 @@ router.get("/", async (req, res) => {
     [salonId]
   );
   const allStaff = allStaffRows.map(r => r.id);
-  const targetStaff = Number(staffId) === 0 ? allStaff : [Number(staffId)];
 
-  const [takenBookings] = await pool.execute(
-    "SELECT staff_id, time_slot FROM bookings WHERE salon_id = ? AND date = ? AND status != 'cancelled'",
-    [salonId, date]
-  );
+  // Validate requested staffId belongs to this salon
+  const requestedStaffId = Number(staffId);
+  if (requestedStaffId !== 0 && !allStaff.includes(requestedStaffId)) {
+    return res.status(400).json({ error: "Staff not found" });
+  }
+  const targetStaff = requestedStaffId === 0 ? allStaff : [requestedStaffId];
+
+  // Duration-aware conflict detection: fetch bookings WITH their service durations
+  const [takenBookings] = await pool.execute(`
+    SELECT b.staff_id, b.time_slot, s.duration
+    FROM bookings b
+    JOIN services s ON b.service_id = s.id
+    WHERE b.salon_id = ? AND b.date = ? AND b.status != 'cancelled'
+  `, [salonId, date]);
+
   const [takenBlocked] = await pool.execute(
     "SELECT staff_id, time_slot FROM blocked_slots WHERE salon_id = ? AND date = ?",
     [salonId, date]
   );
 
-  const takenByStaff = {};
-  [...takenBookings, ...takenBlocked].forEach(({ staff_id, time_slot }) => {
-    if (!takenByStaff[staff_id]) takenByStaff[staff_id] = new Set();
-    takenByStaff[staff_id].add(time_slot);
-  });
+  // Build per-staff list of (start, duration) intervals
+  const occupiedByStaff = {};
+  for (const b of takenBookings) {
+    if (!occupiedByStaff[b.staff_id]) occupiedByStaff[b.staff_id] = [];
+    occupiedByStaff[b.staff_id].push({ start: timeToMin(b.time_slot), duration: b.duration });
+  }
+  for (const b of takenBlocked) {
+    if (!occupiedByStaff[b.staff_id]) occupiedByStaff[b.staff_id] = [];
+    // Blocked slots are treated as 30-minute blocks
+    occupiedByStaff[b.staff_id].push({ start: timeToMin(b.time_slot), duration: 30 });
+  }
 
-  res.json(allSlots.map(slot => ({
-    time: slot,
-    available: targetStaff.some(sid => !(takenByStaff[sid] || new Set()).has(slot)),
-  })));
+  const serviceDuration = service.duration;
+
+  res.json(allSlots.map(slot => {
+    const slotStart = timeToMin(slot);
+    const available = targetStaff.some(sid => {
+      const occ = occupiedByStaff[sid] || [];
+      return !occ.some(({ start, duration }) => overlaps(slotStart, serviceDuration, start, duration));
+    });
+    return { time: slot, available };
+  }));
 });
 
 module.exports = router;

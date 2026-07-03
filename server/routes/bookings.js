@@ -4,6 +4,15 @@ const { pool } = require("../db");
 const { sendBookingConfirmationToCustomer, sendBookingAlertToStaff } = require("../messaging");
 const { rules, rejectIfInvalid } = require("../middleware/validate");
 
+function timeToMin(t) {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function overlaps(s1, d1, s2, d2) {
+  return s1 < s2 + d2 && s2 < s1 + d1;
+}
+
 router.post("/", rules.booking, rejectIfInvalid, async (req, res) => {
   const { serviceId, staffId, date, timeSlot, customerName, customerPhone } = req.body;
   const salonId = req.salon.id;
@@ -12,30 +21,85 @@ router.post("/", rules.booking, rejectIfInvalid, async (req, res) => {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
+  // Validate date is not in the past
+  const todayStr = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" }).format(new Date());
+  if (date < todayStr) {
+    return res.status(400).json({ error: "Cannot book in the past" });
+  }
+
+  // Validate time slot format (HH:MM)
+  if (!/^\d{2}:\d{2}$/.test(timeSlot)) {
+    return res.status(400).json({ error: "Invalid time slot format" });
+  }
+
   const [[service]] = await pool.execute(
     "SELECT * FROM services WHERE id = ? AND salon_id = ? AND active = 1",
     [Number(serviceId), salonId]
   );
   if (!service) return res.status(404).json({ error: "Service not found" });
 
+  // Validate slot is within opening hours
+  const [[hoursRow]] = await pool.execute(
+    "SELECT value FROM settings WHERE salon_id = ? AND `key` = 'hours'",
+    [salonId]
+  );
+  if (hoursRow?.value) {
+    let hours;
+    try { hours = JSON.parse(hoursRow.value); } catch { /* ignore parse error */ }
+    if (hours) {
+      const dow = new Date(date + "T12:00:00").getDay();
+      const dayHours = hours[dow];
+      if (!Array.isArray(dayHours)) {
+        return res.status(400).json({ error: "Salon is closed on this day" });
+      }
+      const [open, close] = dayHours;
+      const slotMin = timeToMin(timeSlot);
+      if (slotMin < Math.round(open * 60) || slotMin + service.duration > Math.round(close * 60)) {
+        return res.status(400).json({ error: "Slot is outside opening hours" });
+      }
+    }
+  }
+
   const [allStaffRows] = await pool.execute(
     "SELECT id FROM staff WHERE salon_id = ? AND active = 1",
     [salonId]
   );
   const allStaff = allStaffRows.map(r => r.id);
-  const targetStaff = Number(staffId) === 0 ? allStaff : [Number(staffId)];
 
-  const [takenRows] = await pool.execute(
-    "SELECT staff_id FROM bookings WHERE salon_id = ? AND date = ? AND time_slot = ? AND status != 'cancelled'",
-    [salonId, date, timeSlot]
-  );
-  const [blockedRows] = await pool.execute(
-    "SELECT staff_id FROM blocked_slots WHERE salon_id = ? AND date = ? AND time_slot = ?",
-    [salonId, date, timeSlot]
+  // Validate requested staffId belongs to this salon
+  const requestedStaffId = Number(staffId);
+  if (requestedStaffId !== 0 && !allStaff.includes(requestedStaffId)) {
+    return res.status(400).json({ error: "Staff not found" });
+  }
+  const targetStaff = requestedStaffId === 0 ? allStaff : [requestedStaffId];
+
+  // Duration-aware conflict check
+  const [takenBookings] = await pool.execute(`
+    SELECT b.staff_id, b.time_slot, s.duration
+    FROM bookings b
+    JOIN services s ON b.service_id = s.id
+    WHERE b.salon_id = ? AND b.date = ? AND b.status != 'cancelled'
+  `, [salonId, date]);
+  const [takenBlocked] = await pool.execute(
+    "SELECT staff_id, time_slot FROM blocked_slots WHERE salon_id = ? AND date = ?",
+    [salonId, date]
   );
 
-  const busy = new Set([...takenRows.map(r => r.staff_id), ...blockedRows.map(r => r.staff_id)]);
-  const assignedStaff = targetStaff.find(id => !busy.has(id));
+  const occupiedByStaff = {};
+  for (const b of takenBookings) {
+    if (!occupiedByStaff[b.staff_id]) occupiedByStaff[b.staff_id] = [];
+    occupiedByStaff[b.staff_id].push({ start: timeToMin(b.time_slot), duration: b.duration });
+  }
+  for (const b of takenBlocked) {
+    if (!occupiedByStaff[b.staff_id]) occupiedByStaff[b.staff_id] = [];
+    occupiedByStaff[b.staff_id].push({ start: timeToMin(b.time_slot), duration: 30 });
+  }
+
+  const slotStart = timeToMin(timeSlot);
+  const assignedStaff = targetStaff.find(id => {
+    const occ = occupiedByStaff[id] || [];
+    return !occ.some(({ start, duration }) => overlaps(slotStart, service.duration, start, duration));
+  });
   if (!assignedStaff) return res.status(409).json({ error: "Slot no longer available" });
 
   // Per-customer booking limit
@@ -62,7 +126,6 @@ router.post("/", rules.booking, rejectIfInvalid, async (req, res) => {
     const [[staffRow]] = await pool.execute("SELECT * FROM staff WHERE id = ?", [assignedStaff]);
     const [[salon]]    = await pool.execute("SELECT * FROM salons WHERE id = ?", [salonId]);
 
-    // Fire-and-forget: customer confirmation + staff alert via WhatsApp
     sendBookingConfirmationToCustomer({ booking, service, staff: staffRow, salon, salonId }).catch(() => {});
     sendBookingAlertToStaff({ booking, service, staff: staffRow, salon, salonId }).catch(() => {});
 

@@ -9,6 +9,9 @@ const tenant     = require("./middleware/tenant");
 
 const app = express();
 
+// Required for accurate IP-based rate limiting behind Railway's proxy
+app.set("trust proxy", 1);
+
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -33,7 +36,10 @@ app.use((_, res, next) => {
   next();
 });
 
-app.use(cors({ origin: process.env.ALLOWED_ORIGIN || true }));
+// In production: only allow configured origin. In dev: allow all (for localhost testing).
+const corsOrigin = process.env.ALLOWED_ORIGIN
+  ?? (process.env.NODE_ENV === "production" ? false : true);
+app.use(cors({ origin: corsOrigin }));
 
 // Raw body needed for WhatsApp webhook signature verification — must come before express.json()
 app.use("/api/webhook", express.raw({ type: "application/json" }));
@@ -66,7 +72,8 @@ const leadsLimiter = rateLimit({
 
 app.use("/api/admin/login",     loginLimiter);
 app.use("/api/bookings",        bookingLimiter);
-app.use("/api/superadmin/leads", leadsLimiter);
+// Only rate-limit lead submissions (POST), not superadmin reads (GET)
+app.post("/api/superadmin/leads", leadsLimiter);
 
 // ── Static files (tenant-agnostic templates) ──────────────────────────────────
 app.use(express.static(path.join(__dirname, "..", "ich-will-schauen-was-besser-ist", "barber-demo")));

@@ -74,11 +74,15 @@ router.patch("/bookings/:id", auth, async (req, res) => {
   const allowed = ["confirmed", "done", "no-show", "cancelled"];
   if (!allowed.includes(status)) return res.status(400).json({ error: "Invalid status" });
   const id = Number(req.params.id);
-  await pool.execute(
+  const [{ affectedRows }] = await pool.execute(
     "UPDATE bookings SET status = ? WHERE id = ? AND salon_id = ?",
     [status, id, req.salon.id]
   );
-  const [[updated]] = await pool.execute("SELECT * FROM bookings WHERE id = ?", [id]);
+  if (!affectedRows) return res.status(404).json({ error: "Not found" });
+  const [[updated]] = await pool.execute(
+    "SELECT * FROM bookings WHERE id = ? AND salon_id = ?",
+    [id, req.salon.id]
+  );
   res.json(updated);
 });
 
@@ -192,11 +196,12 @@ router.get("/services", auth, async (req, res) => {
 router.patch("/services/:id", auth, async (req, res) => {
   const { name, price, duration, active } = req.body;
   const id = Number(req.params.id);
-  await pool.execute(
+  const [{ affectedRows: svcRows }] = await pool.execute(
     "UPDATE services SET name=COALESCE(?,name), price=COALESCE(?,price), duration=COALESCE(?,duration), active=COALESCE(?,active) WHERE id=? AND salon_id=?",
     [name ?? null, price ?? null, duration ?? null, active ?? null, id, req.salon.id]
   );
-  const [[updated]] = await pool.execute("SELECT * FROM services WHERE id=?", [id]);
+  if (!svcRows) return res.status(404).json({ error: "Not found" });
+  const [[updated]] = await pool.execute("SELECT * FROM services WHERE id=? AND salon_id=?", [id, req.salon.id]);
   res.json(updated);
 });
 
@@ -209,19 +214,21 @@ router.get("/staff", auth, async (req, res) => {
 router.patch("/staff/:id", auth, async (req, res) => {
   const { name, active, whatsapp_phone } = req.body;
   const id = Number(req.params.id);
+  let staffRows;
   if (whatsapp_phone !== undefined) {
     // Handle phone update separately so empty string can clear the field
-    await pool.execute(
+    [{ affectedRows: staffRows }] = await pool.execute(
       "UPDATE staff SET name=COALESCE(?,name), active=COALESCE(?,active), whatsapp_phone=? WHERE id=? AND salon_id=?",
       [name ?? null, active ?? null, whatsapp_phone.trim() || null, id, req.salon.id]
     );
   } else {
-    await pool.execute(
+    [{ affectedRows: staffRows }] = await pool.execute(
       "UPDATE staff SET name=COALESCE(?,name), active=COALESCE(?,active) WHERE id=? AND salon_id=?",
       [name ?? null, active ?? null, id, req.salon.id]
     );
   }
-  const [[updated]] = await pool.execute("SELECT * FROM staff WHERE id=?", [id]);
+  if (!staffRows) return res.status(404).json({ error: "Not found" });
+  const [[updated]] = await pool.execute("SELECT * FROM staff WHERE id=? AND salon_id=?", [id, req.salon.id]);
   res.json(updated);
 });
 

@@ -1,4 +1,5 @@
-const mysql = require("mysql2/promise");
+const mysql  = require("mysql2/promise");
+const bcrypt = require("bcryptjs");
 
 const pool = mysql.createPool({
   host:     process.env.DB_HOST,
@@ -13,14 +14,6 @@ const pool = mysql.createPool({
 async function initDb() {
   const conn = await pool.getConnection();
   try {
-    // Migration: add WhatsApp columns to existing tables if missing
-    // MySQL on Railway does not support ADD COLUMN IF NOT EXISTS — use separate try/catch
-    for (const tbl of ["salons", "staff"]) {
-      await conn.execute(`ALTER TABLE ${tbl} ADD COLUMN whatsapp_phone VARCHAR(30)`).catch(e => {
-        if (e.code !== "ER_DUP_FIELDNAME") throw e; // ignore "column already exists"
-      });
-    }
-
     // salons is the root table — must come first
     await conn.execute(`
       CREATE TABLE IF NOT EXISTS salons (
@@ -31,6 +24,7 @@ async function initDb() {
         address        VARCHAR(255),
         phone          VARCHAR(30),
         city           VARCHAR(100),
+        whatsapp_phone VARCHAR(30),
         primary_color  VARCHAR(7)   NOT NULL DEFAULT '#c9a84c',
         logo_initials  VARCHAR(4)   NOT NULL DEFAULT 'NL',
         hero_img_url   VARCHAR(500),
@@ -139,9 +133,19 @@ async function initDb() {
       )
     `);
 
+    // Migrations: add columns to existing installations (CREATE TABLE already includes them for fresh installs)
+    await conn.execute("ALTER TABLE salons ADD COLUMN whatsapp_phone VARCHAR(30)").catch(e => {
+      if (e.code !== "ER_DUP_FIELDNAME") throw e;
+    });
+    await conn.execute("ALTER TABLE staff ADD COLUMN whatsapp_phone VARCHAR(30)").catch(e => {
+      if (e.code !== "ER_DUP_FIELDNAME") throw e;
+    });
+
     // ── Seed demo salon if empty ──────────────────────────────────────────────
     const [[{ n: salonCount }]] = await conn.execute("SELECT COUNT(*) as n FROM salons");
     if (salonCount > 0) return; // already seeded
+
+    const seedPwHash = await bcrypt.hash("barber123", 12);
 
     const [salonResult] = await conn.execute(
       `INSERT INTO salons (name, slug, address, phone, city, primary_color, logo_initials, hero_img_url, maps_url)
@@ -182,7 +186,7 @@ async function initDb() {
     });
     await conn.execute(
       "INSERT INTO settings (salon_id, `key`, value) VALUES (?,?,?),(?,?,?),(?,?,?),(?,?,?)",
-      [sid, "hours", hours, sid, "admin_password", "barber123", sid, "twilio_enabled", "false", sid, "salon_phone", "+4989123456"]
+      [sid, "hours", hours, sid, "admin_password", seedPwHash, sid, "twilio_enabled", "false", sid, "salon_phone", "+4989123456"]
     );
   } finally {
     conn.release();

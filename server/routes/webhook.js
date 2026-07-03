@@ -18,7 +18,11 @@ const { sendWhatsAppText, sendBookingLinkReply } = require("../messaging");
 
 function verifyMetaSignature(req, res, next) {
   const secret = process.env.META_APP_SECRET;
-  if (!secret) return next();
+  if (!secret) {
+    // Fail closed in production — allow only in dev for local testing without Meta credentials
+    if (process.env.NODE_ENV === "production") return res.sendStatus(403);
+    return next();
+  }
 
   const sig = req.headers["x-hub-signature-256"];
   if (!sig) return res.sendStatus(403);
