@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(git commit -m ' *)",
-      "Bash(\"/c/Program Files/nodejs/node.exe\" \"C:/Users/HP/AppData/Roaming/npm/node_modules/@railway/cli/bin/railway.js\" variables set META_APP_ID=2107621246769564 META_WEBHOOK_VERIFY_TOKEN=barberbook2024secure)",
-      "Bash(\"/c/Program Files/nodejs/node.exe\" \"C:/Users/HP/AppData/Roaming/npm/node_modules/@railway/cli/bin/railway.js\" variables)"
-    ]
-  }
-}
