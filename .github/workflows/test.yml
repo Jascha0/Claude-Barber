@@ -1,0 +1,77 @@
+name: Tests
+
+# Runs the API test suite on every push and pull request, so broken changes
+# are caught before they reach production.
+on:
+  push:
+  pull_request:
+
+jobs:
+  api-tests:
+    runs-on: ubuntu-latest
+
+    # Fresh throwaway MySQL for each run. initDb() creates the schema and seeds
+    # the demo salon on server startup, so no migration step is needed here.
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: railway
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASS: root
+      DB_NAME: railway
+      PORT: 3000
+      NODE_ENV: test
+      META_WEBHOOK_VERIFY_TOKEN: ci-verify-token
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start server
+        run: |
+          node server/index.js > server.log 2>&1 &
+          echo "SERVER_PID=$!" >> "$GITHUB_ENV"
+
+      - name: Wait for server to be ready
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:3000/ > /dev/null; then
+              echo "Server is up."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server did not start in time. Logs:"
+          cat server.log
+          exit 1
+
+      - name: Run tests
+        run: npm test
+
+      - name: Server logs on failure
+        if: failure()
+        run: cat server.log || true
+
+      - name: Stop server
+        if: always()
+        run: kill "$SERVER_PID" 2>/dev/null || true
