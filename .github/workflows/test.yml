@@ -35,6 +35,7 @@ jobs:
       PORT: 3000
       NODE_ENV: test
       META_WEBHOOK_VERIFY_TOKEN: ci-verify-token
+      SUPER_ADMIN_PASSWORD: ci-super-token
 
     steps:
       - uses: actions/checkout@v4

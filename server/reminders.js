@@ -40,7 +40,42 @@ cron.schedule("0 3 * * *", () => {
   refreshExpiringTokens().catch(e => console.error("[whatsapp] token refresh cron error:", e.message));
 });
 
+// ── GDPR data retention (Art. 5 Speicherbegrenzung) ───────────────────────────
+// Runs daily at 04:00. Retention windows are placeholders pending the AVV with
+// each salon — override via env vars. Bookings are anonymized (not deleted) so
+// slot history and stats stay intact; messages and leads are deleted outright.
+const RETENTION = {
+  bookingMonths: Number(process.env.RETENTION_BOOKING_MONTHS) || 6,
+  messageDays:   Number(process.env.RETENTION_MESSAGE_DAYS)   || 90,
+  leadMonths:    Number(process.env.RETENTION_LEAD_MONTHS)    || 12,
+};
+
+cron.schedule("0 4 * * *", async () => {
+  try {
+    const [b] = await pool.execute(
+      `UPDATE bookings
+         SET customer_name = '[gelöscht]', customer_phone = '', cancellation_token = NULL
+       WHERE date < DATE_SUB(CURDATE(), INTERVAL ? MONTH)
+         AND customer_phone != ''`,
+      [RETENTION.bookingMonths]
+    );
+    const [m] = await pool.execute(
+      "DELETE FROM whatsapp_messages WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)",
+      [RETENTION.messageDays]
+    );
+    const [l] = await pool.execute(
+      "DELETE FROM leads WHERE created_at < DATE_SUB(NOW(), INTERVAL ? MONTH)",
+      [RETENTION.leadMonths]
+    );
+    if (b.affectedRows || m.affectedRows || l.affectedRows) {
+      console.log(`[retention] anonymized ${b.affectedRows} booking(s), deleted ${m.affectedRows} message(s), ${l.affectedRows} lead(s)`);
+    }
+  } catch (err) {
+    console.error("[retention] cron error:", err.message);
+  }
+}, { timezone: "Europe/Berlin" });
+
 // On startup — refresh any token that has no expiry date yet
 refreshExpiringTokens().catch(e => console.error("[whatsapp] startup token refresh error:", e.message));
 
-console.log("[reminders] Scheduler started — daily at 18:00 (reminders) + 03:00 (token refresh)");
+console.log("[reminders] Scheduler started — daily at 18:00 (reminders) + 03:00 (token refresh) + 04:00 (retention)");

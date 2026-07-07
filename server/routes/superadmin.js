@@ -149,4 +149,82 @@ router.patch("/leads/:id", superAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ── GDPR data subject requests (Art. 15 access / Art. 17 erasure) ─────────────
+// Phone numbers are stored unnormalized, so match on the last 9 digits like the
+// WhatsApp cancel handler does. Not self-service by design — an operator runs it
+// to fulfil a request within the statutory one-month window.
+
+function last9(phone) {
+  return String(phone || "").replace(/\D/g, "").slice(-9);
+}
+
+// GET /api/superadmin/customer-data?phone=...  — export everything held on a person
+router.get("/customer-data", superAuth, async (req, res) => {
+  const digits9 = last9(req.query.phone);
+  if (digits9.length < 6) return res.status(400).json({ error: "Valid phone required" });
+
+  const [bookings] = await pool.execute(`
+    SELECT b.id, b.salon_id, sal.name AS salon_name,
+           DATE_FORMAT(b.date,'%Y-%m-%d') AS date, b.time_slot, b.status,
+           b.customer_name, b.customer_phone, b.created_at,
+           s.name AS service_name
+    FROM bookings b
+    JOIN salons   sal ON b.salon_id   = sal.id
+    LEFT JOIN services s ON b.service_id = s.id
+    WHERE REGEXP_REPLACE(b.customer_phone, '[^0-9]', '') LIKE CONCAT('%', ?)
+      AND b.customer_phone != ''
+    ORDER BY b.date DESC
+  `, [digits9]);
+
+  const [messages] = await pool.execute(`
+    SELECT id, salon_id, from_phone, message_text, intent, created_at
+    FROM whatsapp_messages
+    WHERE REGEXP_REPLACE(from_phone, '[^0-9]', '') LIKE CONCAT('%', ?)
+    ORDER BY created_at DESC
+  `, [digits9]);
+
+  const [leads] = await pool.execute(`
+    SELECT id, salon_name, owner_name, phone, city, created_at
+    FROM leads
+    WHERE REGEXP_REPLACE(phone, '[^0-9]', '') LIKE CONCAT('%', ?)
+  `, [digits9]);
+
+  res.json({
+    query: { phone: req.query.phone, matchedOnLast9: digits9 },
+    generatedAt: new Date().toISOString(),
+    bookings, messages, leads,
+  });
+});
+
+// DELETE /api/superadmin/customer-data?phone=...  — erase / anonymize a person's data
+router.delete("/customer-data", superAuth, async (req, res) => {
+  const digits9 = last9(req.query.phone);
+  if (digits9.length < 6) return res.status(400).json({ error: "Valid phone required" });
+
+  // Bookings: anonymize (keep the row so slot history / stats stay correct)
+  const [b] = await pool.execute(`
+    UPDATE bookings
+       SET customer_name = '[gelöscht]', customer_phone = '', cancellation_token = NULL
+     WHERE REGEXP_REPLACE(customer_phone, '[^0-9]', '') LIKE CONCAT('%', ?)
+       AND customer_phone != ''
+  `, [digits9]);
+
+  // Messages and leads: delete outright
+  const [m] = await pool.execute(
+    "DELETE FROM whatsapp_messages WHERE REGEXP_REPLACE(from_phone, '[^0-9]', '') LIKE CONCAT('%', ?)",
+    [digits9]
+  );
+  const [l] = await pool.execute(
+    "DELETE FROM leads WHERE REGEXP_REPLACE(phone, '[^0-9]', '') LIKE CONCAT('%', ?)",
+    [digits9]
+  );
+
+  res.json({
+    ok: true,
+    anonymizedBookings: b.affectedRows,
+    deletedMessages: m.affectedRows,
+    deletedLeads: l.affectedRows,
+  });
+});
+
 module.exports = router;

@@ -20,7 +20,7 @@ const TEST_PORT = Number(process.env.TEST_PORT) || 3000;
  * Low-level request. `host` sets the Host header (the salon subdomain);
  * the TCP target is always the local test server.
  */
-function request(path, { method = "GET", body = null, host = null, token = null } = {}) {
+function request(path, { method = "GET", body = null, host = null, token = null, superToken = null } = {}) {
   return new Promise((resolve, reject) => {
     const data = body != null ? JSON.stringify(body) : null;
     const headers = {};
@@ -28,8 +28,9 @@ function request(path, { method = "GET", body = null, host = null, token = null 
       headers["Content-Type"] = "application/json";
       headers["Content-Length"] = Buffer.byteLength(data);
     }
-    if (host)  headers["Host"] = host;
-    if (token) headers["x-admin-token"] = token;
+    if (host)       headers["Host"] = host;
+    if (token)      headers["x-admin-token"] = token;
+    if (superToken) headers["x-super-token"] = superToken;
 
     const req = http.request(
       { hostname: TEST_HOST, port: TEST_PORT, path, method, headers },

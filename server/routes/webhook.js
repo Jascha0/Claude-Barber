@@ -78,11 +78,11 @@ router.post("/whatsapp", verifyMetaSignature, async (req, res) => {
     if (!salon) return;
 
     const customerPhone = `+${fromPhone}`;
-    console.log(`[webhook] "${messageText.slice(0, 60)}" from ${customerPhone} → salon "${salon.name}"`);
 
     // AI classification (falls back to keywords if ANTHROPIC_API_KEY not set)
     const intent = await classifyIntent(messageText);
-    console.log(`[webhook] intent: ${intent}`);
+    // Do not log message text or phone number (PII / GDPR — Railway logs are outside retention)
+    console.log(`[webhook] intent=${intent} salon=${salon.id}`);
 
     // Persist message with intent
     await pool.execute(
