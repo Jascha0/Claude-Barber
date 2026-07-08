@@ -1,5 +1,6 @@
 const mysql  = require("mysql2/promise");
 const bcrypt = require("bcryptjs");
+const { normalizePhone } = require("./phone");
 
 const pool = mysql.createPool({
   host:     process.env.DB_HOST,
@@ -10,6 +11,28 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
 });
+
+// Rewrite legacy phone values to canonical E.164. Idempotent: rows already in
+// "+…" form are skipped, so re-running on every boot updates nothing.
+async function normalizeLegacyPhones(conn) {
+  const targets = [
+    { table: "bookings",          col: "customer_phone" },
+    { table: "whatsapp_messages", col: "from_phone" },
+    { table: "leads",             col: "phone" },
+  ];
+  for (const { table, col } of targets) {
+    const [rows] = await conn.execute(
+      `SELECT id, ${col} AS phone FROM ${table} WHERE ${col} NOT LIKE '+%' AND ${col} <> ''`
+    );
+    for (const r of rows) {
+      const normalized = normalizePhone(r.phone);
+      if (normalized && normalized !== r.phone) {
+        await conn.execute(`UPDATE ${table} SET ${col} = ? WHERE id = ?`, [normalized, r.id]);
+      }
+    }
+    if (rows.length) console.log(`[migration] normalized ${rows.length} phone(s) in ${table}`);
+  }
+}
 
 async function initDb() {
   const conn = await pool.getConnection();
@@ -151,6 +174,23 @@ async function initDb() {
     await conn.execute("ALTER TABLE staff ADD COLUMN whatsapp_phone VARCHAR(30)").catch(e => {
       if (e.code !== "ER_DUP_FIELDNAME") throw e;
     });
+
+    // Indexes for phone lookups (exact match on normalized E.164) and hot queries.
+    // MySQL has no ADD INDEX IF NOT EXISTS — ignore "already exists".
+    const addIndex = async (sql) => {
+      await conn.execute(sql).catch(e => {
+        if (e.code !== "ER_DUP_KEYNAME") throw e;
+      });
+    };
+    await addIndex("ALTER TABLE bookings ADD INDEX idx_bk_phone (customer_phone)");
+    await addIndex("ALTER TABLE bookings ADD INDEX idx_bk_salon_date (salon_id, date)");
+    await addIndex("ALTER TABLE whatsapp_messages ADD INDEX idx_wam_phone (from_phone)");
+    await addIndex("ALTER TABLE whatsapp_messages ADD INDEX idx_wam_salon_created (salon_id, created_at)");
+    await addIndex("ALTER TABLE leads ADD INDEX idx_leads_phone (phone)");
+
+    // One-time data migration: normalize legacy phone numbers to E.164 so the new
+    // exact-match lookups find them. Only touches rows not already normalized.
+    await normalizeLegacyPhones(conn);
 
     // ── Seed demo salon if empty ──────────────────────────────────────────────
     const [[{ n: salonCount }]] = await conn.execute("SELECT COUNT(*) as n FROM salons");

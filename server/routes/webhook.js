@@ -15,6 +15,7 @@ const crypto  = require("crypto");
 const { pool } = require("../db");
 const { classifyIntent } = require("../ai");
 const { sendWhatsAppText, sendBookingLinkReply } = require("../messaging");
+const { normalizePhone } = require("../phone");
 
 function verifyMetaSignature(req, res, next) {
   const secret = process.env.META_APP_SECRET;
@@ -77,7 +78,7 @@ router.post("/whatsapp", verifyMetaSignature, async (req, res) => {
     );
     if (!salon) return;
 
-    const customerPhone = `+${fromPhone}`;
+    const customerPhone = normalizePhone(fromPhone);
 
     // AI classification (falls back to keywords if ANTHROPIC_API_KEY not set)
     const intent = await classifyIntent(messageText);
@@ -115,10 +116,8 @@ router.post("/whatsapp", verifyMetaSignature, async (req, res) => {
 
 // ── Cancel intent handler ─────────────────────────────────────────────────────
 async function handleCancelIntent({ customerPhone, salon }) {
-  // Normalize: strip everything except digits, take last 9 to match regardless of
-  // how the customer typed their number at booking time (+49 179... vs 0179... etc.)
-  const digits9 = customerPhone.replace(/\D/g, "").slice(-9);
-
+  // customerPhone is already E.164-normalized, and bookings store the same
+  // canonical form, so this is an indexed exact match (no full-table scan).
   const [bookings] = await pool.execute(`
     SELECT b.id, DATE_FORMAT(b.date, '%Y-%m-%d') as date, b.time_slot, b.cancellation_token,
            s.name as service_name, st.name as staff_name
@@ -126,11 +125,11 @@ async function handleCancelIntent({ customerPhone, salon }) {
     JOIN services s  ON b.service_id = s.id
     JOIN staff    st ON b.staff_id   = st.id
     WHERE b.salon_id = ?
-      AND REGEXP_REPLACE(b.customer_phone, '[^0-9]', '') LIKE CONCAT('%', ?)
+      AND b.customer_phone = ?
       AND b.status = 'confirmed' AND b.date >= CURDATE()
     ORDER BY b.date ASC, b.time_slot ASC
     LIMIT 3
-  `, [salon.id, digits9]);
+  `, [salon.id, customerPhone]);
 
   if (!bookings.length) {
     await sendWhatsAppText({

@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const { pool } = require("../db");
 const { sendBookingConfirmationToCustomer, sendBookingAlertToStaff } = require("../messaging");
 const { rules, rejectIfInvalid } = require("../middleware/validate");
+const { normalizePhone } = require("../phone");
 
 function timeToMin(t) {
   const [h, m] = t.split(":").map(Number);
@@ -102,6 +103,10 @@ router.post("/", rules.booking, rejectIfInvalid, async (req, res) => {
   });
   if (!assignedStaff) return res.status(409).json({ error: "Slot no longer available" });
 
+  // Canonical E.164 form — used for the limit check and stored, so the limit
+  // can't be bypassed by re-typing the number in a different format.
+  const phone = normalizePhone(customerPhone) || customerPhone.trim();
+
   // Per-customer booking limit
   const [[limitRow]] = await pool.execute(
     "SELECT value FROM settings WHERE salon_id = ? AND `key` = 'max_bookings_per_customer'",
@@ -110,7 +115,7 @@ router.post("/", rules.booking, rejectIfInvalid, async (req, res) => {
   const limit = limitRow ? Number(limitRow.value) : 3;
   const [[{ n: activeCount }]] = await pool.execute(
     "SELECT COUNT(*) as n FROM bookings WHERE salon_id = ? AND customer_phone = ? AND status = 'confirmed' AND date >= CURDATE()",
-    [salonId, customerPhone.trim()]
+    [salonId, phone]
   );
   if (activeCount >= limit) {
     return res.status(409).json({ error: `Maximale Anzahl von ${limit} aktiven Buchungen pro Kunde erreicht.` });
@@ -120,7 +125,7 @@ router.post("/", rules.booking, rejectIfInvalid, async (req, res) => {
     const cancelToken = crypto.randomUUID();
     const [result] = await pool.execute(
       "INSERT INTO bookings (salon_id, service_id, staff_id, date, time_slot, customer_name, customer_phone, cancellation_token) VALUES (?,?,?,?,?,?,?,?)",
-      [salonId, service.id, assignedStaff, date, timeSlot, customerName.trim(), customerPhone.trim(), cancelToken]
+      [salonId, service.id, assignedStaff, date, timeSlot, customerName.trim(), phone, cancelToken]
     );
     const [[booking]]  = await pool.execute("SELECT *, DATE_FORMAT(date,'%Y-%m-%d') as date FROM bookings WHERE id = ?", [result.insertId]);
     const [[staffRow]] = await pool.execute("SELECT * FROM staff WHERE id = ?", [assignedStaff]);
