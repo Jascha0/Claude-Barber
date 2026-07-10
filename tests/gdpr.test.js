@@ -21,6 +21,8 @@ test("superadmin data-subject endpoint requires auth (401)", async (t) => {
 
 test("customer data can be exported and then erased", async (t) => {
   if (!SUPER) return t.skip("SUPER_ADMIN_PASSWORD not set");
+  const superToken = await H.superLogin(SUPER);
+  assert.ok(superToken, "superadmin login should succeed");
 
   // Arrange: create a booking with a unique phone.
   const salon = await H.getSalon(host);
@@ -40,16 +42,16 @@ test("customer data can be exported and then erased", async (t) => {
   assert.equal(created.status, 201);
 
   // Act 1: export → the booking shows up.
-  const exp = await H.request(`/api/superadmin/customer-data?phone=${encodeURIComponent(phone)}`, { superToken: SUPER });
+  const exp = await H.request(`/api/superadmin/customer-data?phone=${encodeURIComponent(phone)}`, { superToken });
   assert.equal(exp.status, 200);
   assert.ok(exp.body.bookings.some((b) => b.customer_phone === phone), "export contains the booking");
 
   // Act 2: erase.
-  const del = await H.request(`/api/superadmin/customer-data?phone=${encodeURIComponent(phone)}`, { method: "DELETE", superToken: SUPER });
+  const del = await H.request(`/api/superadmin/customer-data?phone=${encodeURIComponent(phone)}`, { method: "DELETE", superToken });
   assert.equal(del.status, 200);
   assert.ok(del.body.anonymizedBookings >= 1, "at least one booking anonymized");
 
   // Assert: a second export no longer returns the phone.
-  const exp2 = await H.request(`/api/superadmin/customer-data?phone=${encodeURIComponent(phone)}`, { superToken: SUPER });
+  const exp2 = await H.request(`/api/superadmin/customer-data?phone=${encodeURIComponent(phone)}`, { superToken });
   assert.equal(exp2.body.bookings.length, 0, "erased data no longer retrievable by phone");
 });

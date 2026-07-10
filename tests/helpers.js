@@ -60,6 +60,12 @@ const postBooking = (host, payload)   => request("/api/bookings", { method: "POS
 const getCancel   = (token)           => request(`/api/cancel/${token}`);
 const postCancel  = (token)           => request(`/api/cancel/${token}`, { method: "POST" });
 
+/** Log into the superadmin panel, returning a session token (or null on failure). */
+async function superLogin(password) {
+  const r = await request("/api/superadmin/login", { method: "POST", body: { password } });
+  return r.status === 200 ? r.body.token : null;
+}
+
 // ── Date + time helpers (derive everything from the salon's own hours) ────────
 
 function decimalToTime(h) {
@@ -104,7 +110,7 @@ function uniquePhone() {
 
 module.exports = {
   request,
-  getSalon, getServices, getStaff, getSlots, postBooking, getCancel, postCancel,
+  getSalon, getServices, getStaff, getSlots, postBooking, getCancel, postCancel, superLogin,
   decimalToTime, ymd, nextDateForDow, firstOpenDow, firstClosedDow, uniquePhone,
   TEST_HOST, TEST_PORT,
 };

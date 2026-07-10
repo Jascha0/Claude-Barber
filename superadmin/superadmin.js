@@ -67,7 +67,10 @@ function switchTab(tab) {
   document.getElementById("tabLeads").style.color  = tab === "leads"  ? "var(--text)" : "";
 }
 
-function logout() {
+async function logout() {
+  try {
+    if (TOKEN) await fetch(`${API}/logout`, { method: "POST", headers: authHeaders() });
+  } catch { /* ignore network errors — still clear local state */ }
   TOKEN = "";
   localStorage.removeItem("super_token");
   document.getElementById("dashboard").classList.add("hidden");

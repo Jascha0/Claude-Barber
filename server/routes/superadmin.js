@@ -1,24 +1,47 @@
 const router = require("express").Router();
+const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const { pool } = require("../db");
 const { normalizePhone } = require("../phone");
 
-function superAuth(req, res, next) {
+// Constant-time comparison of the configured super-admin password.
+function passwordMatches(input) {
+  const expected = process.env.SUPER_ADMIN_PASSWORD;
+  if (!expected || !input) return false;
+  const a = Buffer.from(String(input));
+  const b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+// Auth via server-side session token (not the password itself).
+async function superAuth(req, res, next) {
   const token = req.headers["x-super-token"];
-  if (!process.env.SUPER_ADMIN_PASSWORD || token !== process.env.SUPER_ADMIN_PASSWORD) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
+  if (!token) return res.status(401).json({ error: "Unauthorized" });
+  const [[session]] = await pool.execute(
+    "SELECT id FROM super_sessions WHERE token = ? AND expires_at > NOW()",
+    [token]
+  );
+  if (!session) return res.status(401).json({ error: "Unauthorized" });
   next();
 }
 
-// POST /api/superadmin/login
-router.post("/login", (req, res) => {
-  const { password } = req.body;
-  if (password && password === process.env.SUPER_ADMIN_PASSWORD) {
-    res.json({ token: process.env.SUPER_ADMIN_PASSWORD });
-  } else {
-    res.status(401).json({ error: "Wrong password" });
+// POST /api/superadmin/login  — exchange the password for a random session token
+router.post("/login", async (req, res) => {
+  if (!passwordMatches(req.body?.password)) {
+    return res.status(401).json({ error: "Wrong password" });
   }
+  const token = crypto.randomBytes(32).toString("hex");
+  const expiresStr = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace("T", " ");
+  await pool.execute("DELETE FROM super_sessions WHERE expires_at < NOW()");
+  await pool.execute("INSERT INTO super_sessions (token, expires_at) VALUES (?,?)", [token, expiresStr]);
+  res.json({ token });
+});
+
+// POST /api/superadmin/logout  — invalidate the current session token
+router.post("/logout", async (req, res) => {
+  const token = req.headers["x-super-token"];
+  if (token) await pool.execute("DELETE FROM super_sessions WHERE token = ?", [token]).catch(() => {});
+  res.json({ ok: true });
 });
 
 // GET /api/superadmin/salons
