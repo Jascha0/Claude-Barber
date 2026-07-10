@@ -4,3 +4,6 @@ data/
 
 # Local Claude Code settings (machine-specific paths + tokens)
 .claude/
+
+# DB backups — contain customer data, never commit
+backups/
