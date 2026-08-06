@@ -2,8 +2,12 @@ node_modules/
 data/
 .env
 
-# Local Claude Code settings (machine-specific paths + tokens)
-.claude/
+# Local Claude Code settings (machine-specific paths + tokens).
+# Shared workflows under commands/ are versioned on purpose — they are not
+# machine-specific. Note: .claude/* (not .claude/), otherwise git skips the
+# whole directory and the exception below never applies.
+.claude/*
+!.claude/commands/
 
 # DB backups — contain customer data, never commit
 backups/
