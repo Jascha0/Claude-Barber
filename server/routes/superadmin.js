@@ -99,6 +99,34 @@ router.post("/salons", superAuth, async (req, res) => {
       ]
     );
 
+    // Seed starter services + staff so the salon is immediately bookable.
+    // The owner edits, renames, or deletes these in the admin panel.
+    // Optional: the request may pass its own `services` / `staff` to override.
+    const services = Array.isArray(req.body.services) && req.body.services.length
+      ? req.body.services
+      : [
+          { name: "Herrenhaarschnitt",   price: 25, duration: 30 },
+          { name: "Haarschnitt & Bart",  price: 35, duration: 45 },
+          { name: "Bartpflege",          price: 18, duration: 20 },
+          { name: "Kinderhaarschnitt",   price: 15, duration: 20 },
+        ];
+    for (const s of services) {
+      await conn.execute(
+        "INSERT INTO services (salon_id, name, price, duration) VALUES (?,?,?,?)",
+        [salonId, String(s.name).trim(), Number(s.price), Number(s.duration)]
+      );
+    }
+
+    const staff = Array.isArray(req.body.staff) && req.body.staff.length
+      ? req.body.staff
+      : ["Mitarbeiter 1"];
+    for (const memberName of staff) {
+      await conn.execute(
+        "INSERT INTO staff (salon_id, name) VALUES (?,?)",
+        [salonId, String(memberName).trim()]
+      );
+    }
+
     await conn.commit();
     const [[salon]] = await conn.execute("SELECT * FROM salons WHERE id = ?", [salonId]);
     res.status(201).json(salon);
