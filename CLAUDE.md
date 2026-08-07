@@ -88,7 +88,7 @@ Zum Entwickeln kann `SALON_SLUG` in `.env` alle Anfragen auf einen Salon zwingen
 
 ## Stand und offene Punkte
 
-Letzter Commit 2026-07-10, danach Pause. 86 offene Issues, in EPICs sortiert.
+Letzter Code-Commit 2026-07-10, danach Pause. **17** offene Issues, in EPICs sortiert — die Nummern reichen bis 86, aber das Meiste ist erledigt.
 
 Die mit `today` markierten Aufgaben sind derzeit **keine Programmieraufgaben**, sondern Einkäufe und Konsolenklicks: Railway auf Hobby-Plan, Domain `barberbook.de` kaufen, DNS-CNAME setzen, WhatsApp-Token in der Meta-Konsole registrieren (WA-4 ist als `blocked` markiert).
 
