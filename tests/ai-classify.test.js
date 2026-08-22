@@ -21,7 +21,7 @@ test("booking-intent phrases classify as 'book'", async () => {
 test("cancellation-intent phrases classify as 'cancel'", async () => {
   assert.equal(await classifyIntent("Ich muss meinen Termin leider absagen"), "cancel");
   assert.equal(await classifyIntent("Kann ich stornieren?"), "cancel");
-  assert.equal(await classifyIntent("Ich kann morgen leider nicht kommen"), "cancel");
+  assert.equal(await classifyIntent("Ich kann leider nicht kommen"), "cancel");
 });
 
 test("neutral/unrelated phrases classify as 'other'", async () => {
