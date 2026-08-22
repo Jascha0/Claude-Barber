@@ -297,8 +297,15 @@ router.post("/services", auth, rules.addService, rejectIfInvalid, async (req, re
 
 // DELETE /api/admin/services/:id
 router.delete("/services/:id", auth, async (req, res) => {
-  await pool.execute("DELETE FROM services WHERE id=? AND salon_id=?", [Number(req.params.id), req.salon.id]);
-  res.json({ ok: true });
+  try {
+    await pool.execute("DELETE FROM services WHERE id=? AND salon_id=?", [Number(req.params.id), req.salon.id]);
+    res.json({ ok: true });
+  } catch (e) {
+    if (e.code === "ER_ROW_IS_REFERENCED_2") {
+      return res.status(409).json({ error: "Dienstleistung hat noch Buchungen, kann nicht gelöscht werden." });
+    }
+    throw e;
+  }
 });
 
 // POST /api/admin/staff — add new staff member
@@ -315,8 +322,15 @@ router.post("/staff", auth, rules.addStaff, rejectIfInvalid, async (req, res) =>
 
 // DELETE /api/admin/staff/:id
 router.delete("/staff/:id", auth, async (req, res) => {
-  await pool.execute("DELETE FROM staff WHERE id=? AND salon_id=?", [Number(req.params.id), req.salon.id]);
-  res.json({ ok: true });
+  try {
+    await pool.execute("DELETE FROM staff WHERE id=? AND salon_id=?", [Number(req.params.id), req.salon.id]);
+    res.json({ ok: true });
+  } catch (e) {
+    if (e.code === "ER_ROW_IS_REFERENCED_2") {
+      return res.status(409).json({ error: "Mitarbeiter hat noch Buchungen, kann nicht gelöscht werden." });
+    }
+    throw e;
+  }
 });
 
 // GET /api/admin/salon — salon public info

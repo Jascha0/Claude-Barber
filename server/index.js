@@ -124,7 +124,7 @@ const PORT = process.env.PORT || 3000;
 
 initDb()
   .then(() => {
-    require("./reminders");
+    require("./reminders").startScheduler();
     app.listen(PORT, () => {
       console.log(`Server running → http://localhost:${PORT}`);
       console.log(`Super admin  → http://localhost:${PORT}/superadmin`);
