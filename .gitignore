@@ -3,11 +3,12 @@ data/
 .env
 
 # Local Claude Code settings (machine-specific paths + tokens).
-# Shared workflows under commands/ are versioned on purpose — they are not
-# machine-specific. Note: .claude/* (not .claude/), otherwise git skips the
-# whole directory and the exception below never applies.
+# Shared workflows under commands/ and subagents under agents/ are versioned
+# on purpose — they are not machine-specific. Note: .claude/* (not .claude/),
+# otherwise git skips the whole directory and the exceptions below never apply.
 .claude/*
 !.claude/commands/
+!.claude/agents/
 
 # DB backups — contain customer data, never commit
 backups/
