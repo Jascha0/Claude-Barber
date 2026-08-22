@@ -2,7 +2,7 @@
  * AI-powered message classification using Claude Haiku.
  * Falls back to keyword matching if ANTHROPIC_API_KEY is not set.
  *
- * Returns: "book" | "cancel" | "other"
+ * Returns: "book" | "cancel" | "other" | "private"
  */
 
 const Anthropic = require("@anthropic-ai/sdk");
@@ -16,16 +16,23 @@ function getClient() {
 }
 
 const SYSTEM_PROMPT = `You are a message classifier for a barbershop / hair salon booking system.
-A customer just sent a WhatsApp message. Classify it into exactly one of these three categories:
+This WhatsApp number belongs to the salon owner and is used both for salon customers AND may
+receive the owner's own personal messages. Classify the message into exactly one of these
+four categories:
 
-- book   → customer wants to make, schedule, or inquire about booking a new appointment
-- cancel → customer wants to cancel, reschedule, or remove an existing appointment
-- other  → anything else: questions about prices, hours, directions, complaints, greetings, thanks, unclear messages, etc.
+- book    → customer wants to make, schedule, or inquire about booking a new appointment
+- cancel  → customer wants to cancel, reschedule, or remove an existing appointment
+- other   → any other message clearly about the salon/barbershop business (prices, opening
+            hours, directions, complaints, services offered, greetings directed at the salon)
+- private → a personal message with NOTHING to do with the salon business (e.g. a friend,
+            family member, or unrelated contact texting the phone owner directly)
 
 Rules:
-- Reply with exactly one word: book, cancel, or other
+- Reply with exactly one word: book, cancel, other, or private
 - No punctuation, no explanation
-- When in doubt, prefer "other" so a human can handle it`;
+- When in doubt whether it relates to the salon, prefer "other" so a human can handle it
+- Only use "private" when the message clearly has nothing to do with the salon (no mention
+  of appointments, prices, services, hours, location, hair/beard, etc.)`;
 
 async function classifyWithAI(text) {
   const ai = getClient();
@@ -40,7 +47,7 @@ async function classifyWithAI(text) {
     });
 
     const result = msg.content[0]?.text?.trim().toLowerCase();
-    if (result === "book" || result === "cancel" || result === "other") return result;
+    if (result === "book" || result === "cancel" || result === "other" || result === "private") return result;
     return "other"; // unexpected output → safe default
   } catch (err) {
     console.error("[ai] classifyIntent failed:", err.message);
@@ -48,7 +55,11 @@ async function classifyWithAI(text) {
   }
 }
 
-// Keyword fallback — used when AI is unavailable
+// Keyword fallback — used when AI is unavailable.
+// Deliberately never returns "private": telling apart a real customer question
+// from a personal message needs actual language understanding, which keyword
+// matching can't safely do. Defaulting unclear messages to "other" keeps them
+// visible to a human instead of risking a real inquiry being silently dropped.
 // More specific phrases first to avoid false positives (e.g. "heute" alone is too broad)
 const CANCEL_KEYWORDS = [
   "absagen", "absage", "abgesagt", "sagt ab", "termin ab", "sage ab",

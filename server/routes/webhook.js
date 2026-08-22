@@ -14,7 +14,7 @@ const router  = require("express").Router();
 const crypto  = require("crypto");
 const { pool } = require("../db");
 const { classifyIntent } = require("../ai");
-const { sendWhatsAppText, sendBookingLinkReply } = require("../messaging");
+const { sendWhatsAppText, sendBookingLinkReply, notifyStaffOfInquiry } = require("../messaging");
 const { normalizePhone } = require("../phone");
 
 function verifyMetaSignature(req, res, next) {
@@ -85,6 +85,12 @@ router.post("/whatsapp", verifyMetaSignature, async (req, res) => {
     // Do not log message text or phone number (PII / GDPR — Railway logs are outside retention)
     console.log(`[webhook] intent=${intent} salon=${salon.id}`);
 
+    if (intent === "private") {
+      // Personal message to the owner's number, unrelated to the salon —
+      // leave it alone entirely: no reply, no notification, no DB record.
+      return;
+    }
+
     // Persist message with intent
     await pool.execute(
       "INSERT INTO whatsapp_messages (salon_id, from_phone, message_text, intent, replied) VALUES (?,?,?,?,?)",
@@ -98,16 +104,9 @@ router.post("/whatsapp", verifyMetaSignature, async (req, res) => {
       await handleCancelIntent({ customerPhone, salon });
 
     } else {
-      // Other — acknowledge and surface in admin inbox
-      await sendWhatsAppText({
-        to: customerPhone,
-        salonId: salon.id,
-        message:
-          `Hallo! 👋 Danke für deine Nachricht.\n\n` +
-          `Wir haben sie erhalten und melden uns so schnell wie möglich bei dir. ✂️\n\n` +
-          `Möchtest du direkt einen Termin buchen?\n` +
-          `👉 ${salon.domain ? `https://${salon.domain}` : `https://claude-barber-production.up.railway.app`}`,
-      });
+      // Other — salon-related question (prices, hours, etc.). No automatic
+      // reply to the customer; notify staff so they can answer personally.
+      await notifyStaffOfInquiry({ salonId: salon.id, customerPhone, messageText });
     }
   } catch (err) {
     console.error("[webhook] Error processing message:", err.message);

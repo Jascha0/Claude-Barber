@@ -195,6 +195,25 @@ async function sendReminder({ booking, service, salon, salonId }) {
 
 // ── Inbound auto-reply ────────────────────────────────────────────────────────
 
+async function notifyStaffOfInquiry({ salonId, customerPhone, messageText }) {
+  const [staffRows] = await pool.execute(
+    "SELECT whatsapp_phone FROM staff WHERE salon_id = ? AND active = 1 AND whatsapp_phone IS NOT NULL AND whatsapp_phone != ''",
+    [salonId]
+  );
+
+  for (const s of staffRows) {
+    await sendWhatsAppText({
+      to: s.whatsapp_phone,
+      salonId,
+      message:
+        `💬 Kundenanfrage über WhatsApp:\n\n` +
+        `📱 ${customerPhone}\n` +
+        `"${messageText}"\n\n` +
+        `Bitte direkt beim Kunden melden — es wurde keine automatische Antwort verschickt.`,
+    });
+  }
+}
+
 async function sendBookingLinkReply({ to, salon, salonId }) {
   const bookingUrl = salon.domain
     ? `https://${salon.domain}`
@@ -216,6 +235,7 @@ module.exports = {
   sendBookingAlertToStaff,
   sendReminder,
   sendBookingLinkReply,
+  notifyStaffOfInquiry,
   sendWhatsAppText,
   refreshWabaToken,
   refreshExpiringTokens,
