@@ -36,6 +36,7 @@ jobs:
       NODE_ENV: test
       META_WEBHOOK_VERIFY_TOKEN: ci-verify-token
       SUPER_ADMIN_PASSWORD: ci-super-token
+      META_APP_SECRET: ci-test-secret
 
     steps:
       - uses: actions/checkout@v4

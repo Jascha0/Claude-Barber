@@ -11,6 +11,7 @@ const { test, before, after } = require("node:test");
 const assert = require("node:assert/strict");
 const { pool } = require("../server/db");
 const H = require("./helpers");
+const { teardownSalon } = require("./fixtures");
 
 const SUPER = process.env.SUPER_ADMIN_PASSWORD;
 const SUFFIX = process.env.TEST_HOST_SUFFIX || "test";
@@ -35,16 +36,7 @@ before(async () => {
 });
 
 after(async () => {
-  if (ctx.salonId) {
-    await pool.execute("DELETE FROM sessions WHERE salon_id = ?", [ctx.salonId]);
-    await pool.execute("DELETE FROM bookings WHERE salon_id = ?", [ctx.salonId]);
-    await pool.execute("DELETE FROM blocked_slots WHERE salon_id = ?", [ctx.salonId]);
-    await pool.execute("DELETE FROM whatsapp_messages WHERE salon_id = ?", [ctx.salonId]);
-    await pool.execute("DELETE FROM settings WHERE salon_id = ?", [ctx.salonId]);
-    await pool.execute("DELETE FROM services WHERE salon_id = ?", [ctx.salonId]);
-    await pool.execute("DELETE FROM staff WHERE salon_id = ?", [ctx.salonId]);
-    await pool.execute("DELETE FROM salons WHERE id = ?", [ctx.salonId]);
-  }
+  await teardownSalon(ctx.salonId);
   await pool.end();
 });
 

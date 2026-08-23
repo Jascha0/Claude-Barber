@@ -14,38 +14,13 @@
 require("dotenv").config({ quiet: true }); // local: load .env; CI: vars already in env
 const { test, before, after } = require("node:test");
 const assert = require("node:assert/strict");
-const bcrypt = require("bcryptjs");
 const { pool } = require("../server/db");
 const H = require("./helpers");
+const { createThrowawaySalon, teardownSalon } = require("./fixtures");
 
-const SUFFIX = process.env.TEST_HOST_SUFFIX || "test";
 const PW = "isolation-test-pw";
-const OPEN_HOURS = JSON.stringify({ 0: [8, 20], 1: [8, 20], 2: [8, 20], 3: [8, 20], 4: [8, 20], 5: [8, 20], 6: [8, 20] });
 
 const ctx = { a: {}, b: {} };
-
-async function makeSalon(label) {
-  const slug = `iso-${label}-${Date.now()}-${Math.floor(Math.random() * 1e4)}`;
-  const [sr] = await pool.execute(
-    "INSERT INTO salons (name, slug, active) VALUES (?,?,1)",
-    [`Isolation ${label}`, slug]
-  );
-  const salonId = sr.insertId;
-  const hash = await bcrypt.hash(PW, 12);
-  await pool.execute(
-    "INSERT INTO settings (salon_id, `key`, value) VALUES (?,?,?),(?,?,?)",
-    [salonId, "hours", OPEN_HOURS, salonId, "admin_password", hash]
-  );
-  const [svc] = await pool.execute(
-    "INSERT INTO services (salon_id, name, price, duration) VALUES (?,?,?,?)",
-    [salonId, `Cut ${label}`, 25, 30]
-  );
-  const [stf] = await pool.execute(
-    "INSERT INTO staff (salon_id, name) VALUES (?,?)",
-    [salonId, `Barber ${label}`]
-  );
-  return { salonId, slug, host: `${slug}.${SUFFIX}`, serviceId: svc.insertId, staffId: stf.insertId };
-}
 
 async function login(host) {
   const r = await H.request("/api/admin/login", { method: "POST", host, body: { password: PW } });
@@ -54,8 +29,8 @@ async function login(host) {
 }
 
 before(async () => {
-  ctx.a = await makeSalon("a");
-  ctx.b = await makeSalon("b");
+  ctx.a = await createThrowawaySalon("a", { prefix: "iso", password: PW });
+  ctx.b = await createThrowawaySalon("b", { prefix: "iso", password: PW });
 
   // A booking that belongs to salon A only.
   const future = new Date();
@@ -72,17 +47,8 @@ before(async () => {
 });
 
 after(async () => {
-  for (const id of [ctx.a.salonId, ctx.b.salonId].filter(Boolean)) {
-    // FK-safe deletion order
-    await pool.execute("DELETE FROM sessions WHERE salon_id = ?", [id]);
-    await pool.execute("DELETE FROM bookings WHERE salon_id = ?", [id]);
-    await pool.execute("DELETE FROM blocked_slots WHERE salon_id = ?", [id]);
-    await pool.execute("DELETE FROM whatsapp_messages WHERE salon_id = ?", [id]);
-    await pool.execute("DELETE FROM settings WHERE salon_id = ?", [id]);
-    await pool.execute("DELETE FROM services WHERE salon_id = ?", [id]);
-    await pool.execute("DELETE FROM staff WHERE salon_id = ?", [id]);
-    await pool.execute("DELETE FROM salons WHERE id = ?", [id]);
-  }
+  await teardownSalon(ctx.a.salonId);
+  await teardownSalon(ctx.b.salonId);
   await pool.end();
 });
 

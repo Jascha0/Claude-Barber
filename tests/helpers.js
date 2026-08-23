@@ -12,6 +12,7 @@
  */
 
 const http = require("http");
+const crypto = require("crypto");
 
 const TEST_HOST = process.env.TEST_HOST || "127.0.0.1";
 const TEST_PORT = Number(process.env.TEST_PORT) || 3000;
@@ -20,10 +21,10 @@ const TEST_PORT = Number(process.env.TEST_PORT) || 3000;
  * Low-level request. `host` sets the Host header (the salon subdomain);
  * the TCP target is always the local test server.
  */
-function request(path, { method = "GET", body = null, host = null, token = null, superToken = null } = {}) {
+function request(path, { method = "GET", body = null, rawBody = null, host = null, token = null, superToken = null, headers: extraHeaders = {} } = {}) {
   return new Promise((resolve, reject) => {
-    const data = body != null ? JSON.stringify(body) : null;
-    const headers = {};
+    const data = rawBody != null ? rawBody : (body != null ? JSON.stringify(body) : null);
+    const headers = { ...extraHeaders };
     if (data) {
       headers["Content-Type"] = "application/json";
       headers["Content-Length"] = Buffer.byteLength(data);
@@ -108,9 +109,32 @@ function uniquePhone() {
   return `+49170${String(Date.now()).slice(-7)}`;
 }
 
+/** HMAC-SHA256 signature in the exact form Meta sends in `x-hub-signature-256`. */
+function computeMetaSignature(secret, rawBodyString) {
+  return "sha256=" + crypto.createHmac("sha256", secret).update(rawBodyString).digest("hex");
+}
+
+/**
+ * Polls `conditionFn` until it returns a truthy value or the timeout elapses.
+ * Used for endpoints that respond before finishing async work (e.g. the
+ * WhatsApp webhook), so tests don't need a fixed sleep.
+ */
+async function waitFor(conditionFn, { timeoutMs = 2000, intervalMs = 100 } = {}) {
+  const start = Date.now();
+  for (;;) {
+    const result = await conditionFn();
+    if (result) return result;
+    if (Date.now() - start >= timeoutMs) {
+      throw new Error(`waitFor: condition not met within ${timeoutMs}ms`);
+    }
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+}
+
 module.exports = {
   request,
   getSalon, getServices, getStaff, getSlots, postBooking, getCancel, postCancel, superLogin,
   decimalToTime, ymd, nextDateForDow, firstOpenDow, firstClosedDow, uniquePhone,
+  computeMetaSignature, waitFor,
   TEST_HOST, TEST_PORT,
 };
