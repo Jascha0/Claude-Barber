@@ -31,9 +31,13 @@ async function saveSetting(salonId, key, value) {
 }
 
 /**
- * Exchanges a short- or long-lived token for a fresh 60-day token.
+ * Exchanges a short- or long-lived token for a fresh long-lived token.
  * Requires META_APP_ID and META_APP_SECRET in env.
  * Returns the new token string, or null on failure.
+ *
+ * Note: for a permanent System User token this is a documented no-op — Meta
+ * hands back the same non-expiring token. The real expiry (if any) must be
+ * read separately via debug_token; don't assume a 60-day result here.
  */
 async function exchangeForLongLivedToken(currentToken) {
   const appId = process.env.META_APP_ID;
@@ -51,9 +55,33 @@ async function exchangeForLongLivedToken(currentToken) {
   return data.access_token;
 }
 
+/** Marker stored in meta_waba_token_expires for a token Meta reports as never expiring. */
+const NEVER_EXPIRES = "never";
+
 /**
- * Refreshes the WABA token for a salon. Exchanges the current token for a new
- * 60-day token and updates the DB. Called on token save and by the daily cron.
+ * Asks Meta what a token's real expiry is. Returns epoch seconds, 0 for a
+ * token that never expires, or null if the check itself failed.
+ */
+async function getTokenExpiresAt(token) {
+  const appId = process.env.META_APP_ID;
+  const appSecret = process.env.META_APP_SECRET;
+  if (!appId || !appSecret) return null;
+
+  const appToken = `${appId}|${appSecret}`;
+  const res = await fetch(
+    `https://graph.facebook.com/debug_token?input_token=${encodeURIComponent(token)}&access_token=${encodeURIComponent(appToken)}`
+  );
+  const data = await res.json();
+  if (data.error || typeof data?.data?.expires_at !== "number") return null;
+  return data.data.expires_at;
+}
+
+/**
+ * Refreshes the WABA token for a salon: exchanges the current token, then
+ * checks the *real* expiry Meta reports for the result. Permanent System User
+ * tokens are stored with the NEVER_EXPIRES marker so the daily cron stops
+ * re-checking them; only a token with a genuine expiry gets a real date.
+ * Called on token save and by the daily cron.
  */
 async function refreshWabaToken(salonId) {
   const cfg = await getSalonWhatsAppConfig(salonId);
@@ -61,13 +89,25 @@ async function refreshWabaToken(salonId) {
 
   const newToken = await exchangeForLongLivedToken(cfg.meta_waba_token);
   if (!newToken) return;
-
-  const expires = new Date();
-  expires.setDate(expires.getDate() + 60);
-
   await saveSetting(salonId, "meta_waba_token", newToken);
-  await saveSetting(salonId, "meta_waba_token_expires", expires.toISOString().slice(0, 10));
-  console.log(`[whatsapp] salon ${salonId}: token refreshed, expires ${expires.toISOString().slice(0, 10)}`);
+
+  const expiresAt = await getTokenExpiresAt(newToken);
+  if (expiresAt === 0) {
+    await saveSetting(salonId, "meta_waba_token_expires", NEVER_EXPIRES);
+    console.log(`[whatsapp] salon ${salonId}: token is permanent, no expiry to track`);
+  } else if (expiresAt) {
+    const expires = new Date(expiresAt * 1000).toISOString().slice(0, 10);
+    await saveSetting(salonId, "meta_waba_token_expires", expires);
+    console.log(`[whatsapp] salon ${salonId}: token refreshed, expires ${expires}`);
+  } else {
+    // Couldn't confirm the real expiry — fall back to a conservative 60-day estimate
+    // so the cron re-checks rather than trusting an unverified token indefinitely.
+    const expires = new Date();
+    expires.setDate(expires.getDate() + 60);
+    const expiresStr = expires.toISOString().slice(0, 10);
+    await saveSetting(salonId, "meta_waba_token_expires", expiresStr);
+    console.log(`[whatsapp] salon ${salonId}: token refreshed, expiry unconfirmed — assuming ${expiresStr}`);
+  }
 }
 
 /**
@@ -79,7 +119,8 @@ async function refreshExpiringTokens() {
   threshold.setDate(threshold.getDate() + 20);
   const thresholdStr = threshold.toISOString().slice(0, 10);
 
-  // Refresh salons that have a token but either no expiry date, or one within 20 days
+  // Refresh salons that have a token but either no expiry date, or one within 20 days.
+  // A NEVER_EXPIRES marker is excluded — confirmed-permanent tokens aren't re-checked.
   const [rows] = await pool.execute(`
     SELECT DISTINCT t.salon_id
     FROM settings t
@@ -91,10 +132,11 @@ async function refreshExpiringTokens() {
         )
         OR EXISTS (
           SELECT 1 FROM settings e
-          WHERE e.salon_id = t.salon_id AND e.\`key\` = 'meta_waba_token_expires' AND e.value <= ?
+          WHERE e.salon_id = t.salon_id AND e.\`key\` = 'meta_waba_token_expires'
+            AND e.value != ? AND e.value <= ?
         )
       )
-  `, [thresholdStr]);
+  `, [NEVER_EXPIRES, thresholdStr]);
 
   for (const { salon_id } of rows) {
     await refreshWabaToken(salon_id).catch(e =>
