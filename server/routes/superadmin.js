@@ -5,7 +5,7 @@ const { pool } = require("../db");
 const { normalizePhone } = require("../phone");
 
 // TEMPORARY — manual end-to-end test trigger for the reminder cron, superadmin-gated.
-// Remove after the WhatsApp go-live test is confirmed working.
+// Remove after the WhatsApp go-live test is confirmed working. (redeploy nudge)
 router.post("/debug/send-reminders", superAuth, async (req, res) => {
   const { sendDueReminders } = require("../reminders");
   const count = await sendDueReminders();
