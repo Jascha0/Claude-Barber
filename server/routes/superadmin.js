@@ -170,6 +170,28 @@ router.patch("/salons/:id", superAuth, async (req, res) => {
   res.json(salon);
 });
 
+// POST /api/superadmin/salons/:id/reset-password — reset a salon's admin password (locked-out recovery)
+router.post("/salons/:id/reset-password", superAuth, async (req, res) => {
+  const id = Number(req.params.id);
+  const { newPassword } = req.body;
+  if (!newPassword || newPassword.length < 6) {
+    return res.status(400).json({ error: "newPassword must be at least 6 characters" });
+  }
+
+  const [[salon]] = await pool.execute("SELECT id FROM salons WHERE id = ?", [id]);
+  if (!salon) return res.status(404).json({ error: "Salon not found" });
+
+  const hash = await bcrypt.hash(newPassword, 12);
+  await pool.execute(
+    "INSERT INTO settings (salon_id, `key`, value) VALUES (?,?,?) ON DUPLICATE KEY UPDATE value=VALUES(value)",
+    [id, "admin_password", hash]
+  );
+  // Old password's sessions are now meaningless — drop them.
+  await pool.execute("DELETE FROM sessions WHERE salon_id = ?", [id]);
+
+  res.json({ ok: true });
+});
+
 // POST /api/leads — public, no auth required (from landing page contact form)
 router.post("/leads", async (req, res) => {
   const { salonName, ownerName, phone, city } = req.body;
